@@ -64,6 +64,7 @@ packages/client/
 - 重做 `shape`
 - 重做 `registry`
 - 重做 `frame`
+- 直接接触平台原生 API
 
 ## `packages/transport-websocket`
 
@@ -80,7 +81,13 @@ packages/transport-websocket/
 
 负责：
 
-- WebSocket 连接与 frame 搬运
+- WebSocket 传输协议抽象
+- frame 搬运流程
+
+不负责：
+
+- 直接接触浏览器 / Node 原生 WebSocket
+- 解释 payload 业务语义
 
 ## `packages/transport-fetch`
 
@@ -97,7 +104,11 @@ packages/transport-fetch/
 
 负责：
 
-- request/response 型传输适配
+- request/response 型传输协议抽象
+
+不负责：
+
+- 直接接触具体环境 fetch 实现
 
 ## `packages/devtools`
 
@@ -115,6 +126,42 @@ packages/devtools/
 负责：
 
 - inspect / pretty / fixture / debug tooling
+
+不负责：
+
+- 直接接触环境原生 IO
+
+## `packages/env-*`
+
+建议内容：
+
+```text
+packages/env-browser/
+  src/
+    websocket-factory.ts
+    fetch-adapter.ts
+    types.ts
+    index.ts
+
+packages/env-node/
+  src/
+    websocket-factory.ts
+    stream-adapter.ts
+    types.ts
+    index.ts
+```
+
+负责：
+
+- 唯一边界层
+- 原生 API 接入
+- 环境类型收敛
+- IO 适配
+
+原则：
+
+- 所有环境差异都收进这里
+- `core/client/transport/devtools` 不再直接碰环境 API
 
 ## `packages/bench`
 
@@ -153,4 +200,5 @@ examples/
 1. 先把当前 `src/*` 迁到 `packages/core/src/*`
 2. root 保留聚合配置和 workspace 命令
 3. `client` 先建骨架，不抢 `core` 职责
-4. transport 先冻结边界，再逐个实现
+4. `transport-*` 保持非边界层，不直接碰环境 API
+5. `env-*` 作为唯一边界层单独演进

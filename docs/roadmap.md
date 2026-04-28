@@ -369,3 +369,26 @@
 验收：
 
 - inspect / fixtures / benchmark 不再散落在 root
+
+### W5: `env-*` Boundary Layer
+
+目标：
+
+- 引入唯一边界层：
+  - `env-browser`
+  - `env-node`
+  - `env-cloudflare`
+  - `env-bun`
+
+验收：
+
+- `transport-*` 不再直接碰环境原生 API
+- 环境差异收敛进 `env-*`
+
+### W6: Final Hardening
+
+目标：
+
+- 尽量减少 `?. / ?? / ?`
+- 单文件覆盖率 >= 80%
+- 文档、代码、world 边界完全一致

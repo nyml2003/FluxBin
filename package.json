@@ -5,11 +5,12 @@
   "type": "module",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
-    "build": "pnpm --filter @fluxbin/core build && pnpm --filter @fluxbin/client build && pnpm --filter @fluxbin/transport-websocket build",
+    "build": "pnpm --filter @fluxbin/core build && pnpm --filter @fluxbin/client build && pnpm --filter @fluxbin/transport-websocket build && pnpm --filter @fluxbin/devtools build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "bench": "tsx bench/index.ts"
+    "bench": "tsx bench/index.ts",
+    "example:basic-roundtrip": "tsx examples/basic-roundtrip/index.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

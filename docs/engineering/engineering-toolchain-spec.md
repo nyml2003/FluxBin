@@ -279,3 +279,25 @@ lint 不只是格式工具。
 3. `vitest` 可以在 `node` 环境跑 core 测试
 4. Browser / Node 一致性测试可执行
 5. `tsx` 只出现在脚本入口，不出现在正式构建链路
+
+## 边界层补充
+
+在最终 world 模型里：
+
+- `packages/core`
+- `packages/client`
+- `packages/transport-*`
+- `packages/devtools`
+
+都属于非边界层。
+
+只有：
+
+- `packages/env-*`
+
+属于边界层。
+
+因此工具链和目录组织也应服从这条规则：
+
+- transport 包不直接碰原生环境 API
+- 原生 API 适配集中进 `env-*`

@@ -1,4 +1,11 @@
-import type { Registry, Result } from "@fluxbin/core";
+/**
+ * client 公共类型定义。
+ *
+ * 这个文件定义 descriptor、transport 契约和最小 client API。
+ * 它属于 SDK 层，不直接承载协议字节逻辑。
+ */
+import type { Registry, Result, Shape } from "@fluxbin/core";
+import type { ClientError } from "./errors.js";
 
 export type ClientTransportState = "idle" | "connecting" | "open" | "closed" | "error";
 
@@ -10,9 +17,23 @@ export type ClientTransport = {
   onStateChange?(handler: (state: ClientTransportState) => void): () => void;
 };
 
-export type ClientError = {
-  code: "CLIENT_NOT_IMPLEMENTED";
-  message: string;
+export type MessageDescriptor<TPayload> = {
+  name?: string;
+  shape: Shape;
+  typeId: number;
+  _payload?: TPayload;
+};
+
+export type PublishMessage<TPayload> = {
+  descriptor: MessageDescriptor<TPayload>;
+  payload: TPayload;
+};
+
+export type RequestMessage<TRequest, TResponse> = {
+  payload: TRequest;
+  request: MessageDescriptor<TRequest>;
+  response: MessageDescriptor<TResponse>;
+  timeoutMs?: number;
 };
 
 export type CreateClientOptions = {
@@ -25,4 +46,6 @@ export type CreateClientOptions = {
 export type FluxBinClient = {
   connect(): Promise<Result<void, ClientError>>;
   disconnect(): Promise<Result<void, ClientError>>;
+  publish<TPayload>(message: PublishMessage<TPayload>): Promise<Result<void, ClientError>>;
+  request<TRequest, TResponse>(message: RequestMessage<TRequest, TResponse>): Promise<Result<TResponse, ClientError>>;
 };

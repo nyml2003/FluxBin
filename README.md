@@ -6,6 +6,7 @@ FluxBin 是一个面向 Browser / Node 的极简二进制协议设计方案。
 
 - [Spec Overview](./docs/spec/00-overview.md)
 - [World Docs](./docs/world/README.md)
+- [Current Gaps](./docs/overview/current-gaps.md)
 
 建议阅读顺序：
 
@@ -16,7 +17,9 @@ FluxBin 是一个面向 Browser / Node 的极简二进制协议设计方案。
 5. [Versioning And Limits](./docs/spec/05-versioning-and-limits.md)
 6. [World Model](./docs/world/world-model.md)
 7. [Package Map](./docs/world/package-map.md)
-8. [Client API Draft](./docs/world/client-api-draft.md)
+8. [Boundary Model](./docs/world/boundary-model.md)
+9. [Client API Draft](./docs/world/client-api-draft.md)
+10. [Current Gaps](./docs/overview/current-gaps.md)
 
 当前文档组织目标：
 
