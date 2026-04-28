@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
-    "build": "pnpm --filter @fluxbin/core build && pnpm --filter @fluxbin/client build && pnpm --filter @fluxbin/transport-websocket build && pnpm --filter @fluxbin/devtools build",
+    "build": "pnpm --filter @fluxbin/core build && pnpm --filter @fluxbin/client build && pnpm --filter @fluxbin/transport-websocket build && pnpm --filter @fluxbin/devtools build && pnpm --filter @fluxbin/env-browser build && pnpm --filter @fluxbin/env-node build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

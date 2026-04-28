@@ -5,10 +5,11 @@
 阅读顺序建议：
 
 1. [world-model.md](./world-model.md)
-2. [package-map.md](./package-map.md)
-3. [client-api-draft.md](./client-api-draft.md)
+2. [boundary-model.md](./boundary-model.md)
+3. [package-map.md](./package-map.md)
+4. [client-api-draft.md](./client-api-draft.md)
 
 说明：
 
 - `docs/spec/*` 讲协议与运行时契约
-- `docs/world/*` 讲包层级、SDK 边界和长期世界模型
+- `docs/world/*` 讲包层级、边界模型、SDK 边界和长期世界模型

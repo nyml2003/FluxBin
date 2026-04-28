@@ -1,61 +1,18 @@
 /**
  * FluxBin 最小端到端示例。
  *
- * 这个示例不依赖真实网络，而是用内存 transport 演示
- * core + client + devtools 的最小协作路径，便于在本地快速验证。
+ * 这个示例显式展示 “非边界协议包 + env 边界包” 的组合方式：
+ * - `core` 负责协议
+ * - `client` 负责会话
+ * - `transport-websocket` 负责传输抽象
+ * - `env-node` 负责边界注入
+ * - `devtools` 负责开发辅助
  */
 import { createRegistry, decodeFrame, decodePayload, encodeFrame, encodePayload } from "@fluxbin/core";
-import { createClient, type ClientTransport } from "@fluxbin/client";
+import { createClient } from "@fluxbin/client";
 import { createFixture, inspectFrame } from "@fluxbin/devtools";
-
-function createLoopbackTransport() {
-  let frameHandler: ((frame: Uint8Array) => void) | null = null;
-  let connected = false;
-
-  const transport: ClientTransport = {
-    connect() {
-      connected = true;
-      return Promise.resolve();
-    },
-    disconnect() {
-      connected = false;
-      return Promise.resolve();
-    },
-    onFrame(handler) {
-      frameHandler = handler;
-      return () => {
-        frameHandler = null;
-      };
-    },
-    send(frame) {
-      if (!connected) {
-        return Promise.reject(new Error("loopback 未连接。"));
-      }
-
-      /**
-       * 这里模拟一个极小 server：
-       * 收到 request frame 后，立刻解码并回写一个 response frame。
-       */
-      const decoded = decodeFrame(frame, registry.options);
-      if (decoded.ok) {
-        const payload = decodePayload(requestEntry.compiledShape, decoded.value.frame.payload, registry.options);
-        if (payload.ok) {
-          const encodedResponsePayload = encodePayload(responseEntry.compiledShape, { ok: true }, registry.options);
-          if (encodedResponsePayload.ok) {
-            const encodedResponseFrame = encodeFrame(responseEntry.typeId, encodedResponsePayload.value, registry.options);
-            if (encodedResponseFrame.ok) {
-              frameHandler?.(encodedResponseFrame.value);
-            }
-          }
-        }
-      }
-
-      return Promise.resolve();
-    }
-  };
-
-  return transport;
-}
+import { createLoopbackWebSocketBoundary } from "@fluxbin/env-node";
+import { createWebSocketTransport } from "@fluxbin/transport-websocket";
 
 const registry = createRegistry();
 const requestDescriptor = {
@@ -85,7 +42,46 @@ if (!responseRegistered.ok) {
 
 const requestEntry = requestRegistered.value;
 const responseEntry = responseRegistered.value;
-const transport = createLoopbackTransport();
+const boundary = createLoopbackWebSocketBoundary();
+boundary.setServerHandler((serverSocket) => {
+  serverSocket.addEventListener("message", (event) => {
+    /**
+     * 这里模拟一个极小 server：
+     * env 边界层把“收发消息”的壳搭出来，示例内部只借它演示协议链路。
+     */
+    const frame = event.data;
+    if (!(frame instanceof Uint8Array)) {
+      return;
+    }
+
+    const decoded = decodeFrame(frame, registry.options);
+    if (!decoded.ok) {
+      return;
+    }
+
+    const payload = decodePayload(requestEntry.compiledShape, decoded.value.frame.payload, registry.options);
+    if (!payload.ok) {
+      return;
+    }
+
+    const encodedResponsePayload = encodePayload(responseEntry.compiledShape, { ok: true }, registry.options);
+    if (!encodedResponsePayload.ok) {
+      return;
+    }
+
+    const encodedResponseFrame = encodeFrame(responseEntry.typeId, encodedResponsePayload.value, registry.options);
+    if (!encodedResponseFrame.ok) {
+      return;
+    }
+
+    serverSocket.send(encodedResponseFrame.value);
+  });
+});
+
+const transport = createWebSocketTransport({
+  url: "loopback://example",
+  webSocketFactory: boundary.webSocketFactory
+});
 const client = createClient({
   registry,
   requestTimeoutMs: 250,

@@ -19,6 +19,8 @@
     "rootDir": ".",
     "paths": {
       "@fluxbin/devtools": ["packages/devtools/src/index.ts"],
+      "@fluxbin/env-browser": ["packages/env-browser/src/index.ts"],
+      "@fluxbin/env-node": ["packages/env-node/src/index.ts"],
       "@fluxbin/core": ["packages/core/src/index.ts"],
       "@fluxbin/client": ["packages/client/src/index.ts"],
       "@fluxbin/transport-websocket": ["packages/transport-websocket/src/index.ts"]

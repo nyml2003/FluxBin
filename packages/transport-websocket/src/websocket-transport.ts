@@ -6,30 +6,10 @@
  */
 import type {
   CreateWebSocketTransportOptions,
-  WebSocketFactory,
   WebSocketFrameTransport,
   WebSocketLike,
   WebSocketTransportState
 } from "./types.js";
-
-function createMissingWebSocketError() {
-  return new Error("当前环境没有可用的 WebSocket 实现。");
-}
-
-function resolveWebSocketFactory(
-  options: CreateWebSocketTransportOptions
-): WebSocketFactory | Error {
-  if (options.webSocketFactory !== undefined) {
-    return options.webSocketFactory;
-  }
-
-  const candidate = globalThis.WebSocket;
-  if (typeof candidate !== "function") {
-    return createMissingWebSocketError();
-  }
-
-  return (url, protocols) => new candidate(url, protocols);
-}
 
 function toUint8Array(data: unknown): Uint8Array | null {
   if (data instanceof Uint8Array) {
@@ -112,14 +92,13 @@ export function createWebSocketTransport(
         return connectPromise;
       }
 
-      const resolvedFactory = resolveWebSocketFactory(options);
-      if (resolvedFactory instanceof Error) {
-        emitState("error");
-        return Promise.reject(resolvedFactory);
-      }
-
       emitState("connecting");
-      socket = resolvedFactory(options.url, options.protocols);
+      try {
+        socket = options.webSocketFactory(options.url, options.protocols);
+      } catch (factoryFailure) {
+        emitState("error");
+        return Promise.reject(toError(factoryFailure, "WebSocket factory 创建失败。"));
+      }
       socket.binaryType = "arraybuffer";
       attachSocketHandlers(socket);
 

@@ -124,23 +124,15 @@ describe("websocket transport", () => {
     await transport.disconnect();
   });
 
-  it("handles missing websocket implementations and ignores unsupported message payloads", async () => {
-    const originalWebSocket = globalThis.WebSocket;
-    // @ts-expect-error test override
-    globalThis.WebSocket = undefined;
-
+  it("handles factory failures and ignores unsupported message payloads", async () => {
     const transport = createWebSocketTransport({
-      url: "ws://missing.test"
+      url: "ws://missing.test",
+      webSocketFactory() {
+        throw new Error("factory failed");
+      }
     });
 
-    await expect(transport.connect()).rejects.toThrow("没有可用的 WebSocket");
-
-    if (originalWebSocket !== undefined) {
-      globalThis.WebSocket = originalWebSocket;
-    } else {
-      // @ts-expect-error test cleanup
-      delete globalThis.WebSocket;
-    }
+    await expect(transport.connect()).rejects.toThrow("factory failed");
 
     const fakeSocket = new FakeWebSocket();
     const frames: Uint8Array[] = [];

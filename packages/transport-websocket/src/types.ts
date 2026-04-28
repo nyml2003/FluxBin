@@ -44,5 +44,5 @@ export type WebSocketFrameTransport = {
 export type CreateWebSocketTransportOptions = {
   protocols?: string | string[];
   url: string;
-  webSocketFactory?: WebSocketFactory;
+  webSocketFactory: WebSocketFactory;
 };
