@@ -41,7 +41,10 @@ export function decodeFrameHeader(
   options: FluxBinOptions,
   offset?: number
 ): Result<{ header: FrameHeader; nextOffset: number }, FluxBinError> {
-  const resolvedOffset = offset ?? 0;
+  let resolvedOffset = 0;
+  if (offset !== undefined) {
+    resolvedOffset = offset;
+  }
   const availableBytes = bytes.byteLength - resolvedOffset;
   if (availableBytes < FRAME_HEADER_BYTES) {
     return err(

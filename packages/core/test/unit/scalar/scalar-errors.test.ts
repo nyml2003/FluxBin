@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readBool } from "../../../src/scalar/bool.js";
-import { readI16, readI32, readI8, readU16, readU32 } from "../../../src/scalar/read-scalars.js";
+import { readI16, readI32, readI8, readU16, readU32, readU8 } from "../../../src/scalar/read-scalars.js";
 import { decodeUtf8String, encodeUtf8String } from "../../../src/scalar/utf8.js";
 import { isOk } from "../../../src/types/result.js";
-import { writeI16, writeI32, writeI8, writeU16, writeU32 } from "../../../src/scalar/write-scalars.js";
+import { writeI16, writeI32, writeI8, writeU16, writeU32, writeU8 } from "../../../src/scalar/write-scalars.js";
 
 describe("scalar error handling", () => {
   it("returns structured errors for out-of-bounds reads", () => {
@@ -15,6 +15,9 @@ describe("scalar error handling", () => {
     const readI32Result = readI32(view, -1, "little");
     expect(readI32Result.ok).toBe(false);
 
+    const readU8NegativeOffset = readU8(view, -1);
+    expect(readU8NegativeOffset.ok).toBe(false);
+
     const readI8Result = readI8(view, 0);
     expect(readI8Result.ok).toBe(true);
 
@@ -23,6 +26,12 @@ describe("scalar error handling", () => {
 
     const readU32Result = readU32(new DataView(new Uint8Array([1, 2]).buffer), 0, "little");
     expect(readU32Result.ok).toBe(false);
+
+    const readI16Short = readI16(new DataView(new Uint8Array([1]).buffer), 0, "little");
+    expect(readI16Short.ok).toBe(false);
+
+    const readI32Valid = readI32(new DataView(new Uint8Array([1, 0, 0, 0]).buffer), 0, "little");
+    expect(readI32Valid.ok).toBe(true);
   });
 
   it("returns structured errors for invalid scalar writes", () => {
@@ -30,6 +39,9 @@ describe("scalar error handling", () => {
 
     const invalidRange = writeU16(view, 0, 0x1_0000, "little");
     expect(invalidRange.ok).toBe(false);
+
+    const invalidU8Offset = writeU8(view, -1, 1);
+    expect(invalidU8Offset.ok).toBe(false);
 
     const invalidOffset = writeU32(view, 0, 1, "little");
     expect(invalidOffset.ok).toBe(false);

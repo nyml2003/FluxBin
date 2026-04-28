@@ -153,4 +153,47 @@ describe("websocket transport", () => {
     fakeSocket.emit("message", { data: "ignored" });
     expect(frames).toHaveLength(0);
   });
+
+  it("reuses the in-flight connect promise and falls back on empty error payloads", async () => {
+    const fakeSocket = new FakeWebSocket();
+    const transport = createWebSocketTransport({
+      url: "ws://shared-connect.test",
+      webSocketFactory() {
+        return fakeSocket;
+      }
+    });
+
+    const firstConnect = transport.connect();
+    const secondConnect = transport.connect();
+    expect(firstConnect).toBe(secondConnect);
+
+    fakeSocket.emit("error", {});
+    await expect(firstConnect).rejects.toThrow("打开失败");
+  });
+
+  it("can disconnect safely before any socket exists", async () => {
+    const transport = createWebSocketTransport({
+      url: "ws://idle-close.test",
+      webSocketFactory() {
+        return new AutoOpenFakeWebSocket();
+      }
+    });
+
+    await expect(transport.disconnect()).resolves.toBeUndefined();
+  });
+
+  it("can disconnect while connect is still pending", async () => {
+    const fakeSocket = new FakeWebSocket();
+    const transport = createWebSocketTransport({
+      url: "ws://pending-close.test",
+      webSocketFactory() {
+        return fakeSocket;
+      }
+    });
+
+    const connectPromise = transport.connect();
+    await transport.disconnect();
+    fakeSocket.emit("error", { error: new Error("closed during connect") });
+    await expect(connectPromise).rejects.toThrow("closed during connect");
+  });
 });

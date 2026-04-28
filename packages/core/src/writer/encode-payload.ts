@@ -30,7 +30,12 @@ function encodeFixedWidth(
   input: unknown,
   options: FluxBinOptions
 ): Result<Uint8Array, FluxBinError> {
-  const bytes = new Uint8Array(field.byteWidth ?? 0);
+  let byteWidth = 0;
+  if (field.byteWidth !== null) {
+    byteWidth = field.byteWidth;
+  }
+
+  const bytes = new Uint8Array(byteWidth);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
   switch (field.kind) {

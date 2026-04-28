@@ -10,7 +10,10 @@ export function decodeFrame(
   options: FluxBinOptions,
   offset?: number
 ): Result<{ frame: DecodedFrame; nextOffset: number }, FluxBinError> {
-  const resolvedOffset = offset ?? 0;
+  let resolvedOffset = 0;
+  if (offset !== undefined) {
+    resolvedOffset = offset;
+  }
   const headerResult = decodeFrameHeader(bytes, options, resolvedOffset);
   if (!headerResult.ok) {
     return headerResult;

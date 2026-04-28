@@ -8,7 +8,7 @@
     "build": "pnpm --filter @fluxbin/core build && pnpm --filter @fluxbin/client build && pnpm --filter @fluxbin/transport-websocket build && pnpm --filter @fluxbin/devtools build && pnpm --filter @fluxbin/env-browser build && pnpm --filter @fluxbin/env-node build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "tsx scripts/run-vitest-with-coverage.ts",
     "bench": "tsx bench/index.ts",
     "example:basic-roundtrip": "tsx examples/basic-roundtrip/index.ts"
   },

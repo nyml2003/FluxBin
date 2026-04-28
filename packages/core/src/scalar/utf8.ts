@@ -16,7 +16,10 @@ export function encodeUtf8String(
   endian: Endian,
   limits?: FluxBinLimits
 ): Result<Uint8Array, FluxBinError> {
-  const resolvedLimits = limits ?? DEFAULT_LIMITS;
+  let resolvedLimits = DEFAULT_LIMITS;
+  if (limits !== undefined) {
+    resolvedLimits = limits;
+  }
   const encoded = encoder.encode(value);
   if (encoded.byteLength > resolvedLimits.maxStringBytes) {
     return err(
@@ -45,7 +48,10 @@ export function decodeUtf8String(
   endian: Endian,
   limits?: FluxBinLimits
 ): Utf8DecodeResult {
-  const resolvedLimits = limits ?? DEFAULT_LIMITS;
+  let resolvedLimits = DEFAULT_LIMITS;
+  if (limits !== undefined) {
+    resolvedLimits = limits;
+  }
   const lengthResult = readU32(view, offset, endian);
   if (!lengthResult.ok) {
     return lengthResult;

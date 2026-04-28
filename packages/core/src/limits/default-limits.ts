@@ -29,7 +29,10 @@ export const DEFAULT_OPTIONS: Readonly<FluxBinOptions> = Object.freeze({
 });
 
 export function cloneLimits(overrides?: Partial<FluxBinLimits>): FluxBinLimits {
-  const resolvedOverrides = overrides ?? {};
+  let resolvedOverrides: Partial<FluxBinLimits> = {};
+  if (overrides !== undefined) {
+    resolvedOverrides = overrides;
+  }
 
   return {
     ...DEFAULT_LIMITS,
@@ -43,8 +46,18 @@ export function createOptions(
     limits?: Partial<FluxBinLimits>;
   }
 ): FluxBinOptions {
-  const resolvedOverrides = overrides ?? {};
-  const resolvedEndian = resolvedOverrides.endian ?? DEFAULT_OPTIONS.endian;
+  let resolvedOverrides: {
+    endian?: Endian;
+    limits?: Partial<FluxBinLimits>;
+  } = {};
+  if (overrides !== undefined) {
+    resolvedOverrides = overrides;
+  }
+
+  let resolvedEndian = DEFAULT_OPTIONS.endian;
+  if (resolvedOverrides.endian !== undefined) {
+    resolvedEndian = resolvedOverrides.endian;
+  }
   const resolvedLimits = cloneLimits(resolvedOverrides.limits);
 
   return {

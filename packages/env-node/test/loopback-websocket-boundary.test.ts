@@ -18,4 +18,37 @@ describe("env-node loopback boundary", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(received).not.toBeNull();
   });
+
+  it("keeps working when there is no server handler and supports close events", async () => {
+    const boundary = createLoopbackWebSocketBoundary();
+    const socket = boundary.webSocketFactory("loopback://test");
+    let closed = false;
+
+    socket.addEventListener("close", () => {
+      closed = true;
+    });
+
+    socket.close();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(closed).toBe(true);
+  });
+
+  it("replaces the server handler and forwards to the latest one", async () => {
+    const boundary = createLoopbackWebSocketBoundary();
+    let firstCount = 0;
+    let secondCount = 0;
+
+    boundary.setServerHandler(() => {
+      firstCount += 1;
+    });
+    boundary.setServerHandler(() => {
+      secondCount += 1;
+    });
+
+    boundary.webSocketFactory("loopback://replace");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(firstCount).toBe(0);
+    expect(secondCount).toBe(1);
+  });
 });

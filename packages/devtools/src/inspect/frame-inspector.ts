@@ -36,8 +36,9 @@ export function inspectFrame(frameBytes: Uint8Array, registry: Registry): Inspec
     typeId: decodedFrame.value.frame.typeId
   };
 
-  if (registered.meta?.name !== undefined) {
-    inspected.registeredName = registered.meta.name;
+  const meta = registered.meta;
+  if (meta !== undefined && meta.name !== undefined) {
+    inspected.registeredName = meta.name;
   }
 
   if (decodedPayload.ok) {

@@ -16,7 +16,10 @@ export function protocolError(
   offset?: number | null,
   details?: unknown
 ): ProtocolError {
-  const resolvedOffset = offset ?? null;
+  let resolvedOffset: number | null = null;
+  if (offset !== undefined) {
+    resolvedOffset = offset;
+  }
 
   return { kind: "protocol-error", code, message, offset: resolvedOffset, details };
 }
@@ -28,7 +31,10 @@ export function needMoreData(
   offset?: number | null,
   details?: unknown
 ): NeedMoreDataError {
-  const resolvedOffset = offset ?? null;
+  let resolvedOffset: number | null = null;
+  if (offset !== undefined) {
+    resolvedOffset = offset;
+  }
 
   return {
     kind: "need-more-data",

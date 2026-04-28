@@ -53,7 +53,12 @@ class LoopbackSocket implements WebSocketLike {
     type: K,
     listener: (event: WebSocketEventMap[K]) => void
   ): void {
-    this.listeners.get(type)?.delete(listener as (event: unknown) => void);
+    const existing = this.listeners.get(type);
+    if (existing === undefined) {
+      return;
+    }
+
+    existing.delete(listener as (event: unknown) => void);
   }
 
   send(data: Uint8Array): void {

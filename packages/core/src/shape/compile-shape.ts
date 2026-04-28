@@ -60,7 +60,9 @@ function compileShapeInternal(shape: Shape): CompiledShape {
       fixedWidth = false;
       staticByteLength = 0;
     } else if (fixedWidth) {
-      staticByteLength += nestedShape.staticByteLength ?? 0;
+      if (nestedShape.staticByteLength !== null) {
+        staticByteLength += nestedShape.staticByteLength;
+      }
     }
   }
 
@@ -74,7 +76,10 @@ function compileShapeInternal(shape: Shape): CompiledShape {
 }
 
 export function compileShape(shape: Shape, limits?: FluxBinLimits): Result<CompiledShape, FluxBinError> {
-  const resolvedLimits = limits ?? DEFAULT_LIMITS;
+  let resolvedLimits = DEFAULT_LIMITS;
+  if (limits !== undefined) {
+    resolvedLimits = limits;
+  }
   const validated = validateShape(shape, resolvedLimits);
   if (!validated.ok) {
     return validated;

@@ -31,11 +31,11 @@ type PendingRequest = {
   timeoutHandle: ReturnType<typeof setTimeout> | null;
 };
 
-function createTransportError(message: string, details?: unknown): ClientError {
+function createTransportError(message: string, details: unknown): ClientError {
   return createClientError("CLIENT_TRANSPORT_ERROR", message, details);
 }
 
-function createProtocolError(message: string, details?: unknown): ClientError {
+function createProtocolError(message: string, details: unknown): ClientError {
   return createClientError("CLIENT_PROTOCOL_ERROR", message, details);
 }
 
@@ -131,6 +131,18 @@ function createTransportStateHandler(stateRef: { value: ClientTransportState }) 
   };
 }
 
+function resolveTimeoutMs(message: RequestMessage<unknown, unknown>, options: CreateClientOptions): number {
+  let timeoutMs = 5_000;
+  if (options.requestTimeoutMs !== undefined) {
+    timeoutMs = options.requestTimeoutMs;
+  }
+  if (message.timeoutMs !== undefined) {
+    timeoutMs = message.timeoutMs;
+  }
+
+  return timeoutMs;
+}
+
 async function publishMessage<TPayload>(
   options: CreateClientOptions,
   transport: ClientTransport,
@@ -203,7 +215,7 @@ async function requestMessage<TRequest, TResponse>(
     return err(createProtocolError("编码 request frame 失败。", encodedFrame.error));
   }
 
-  const timeoutMs = message.timeoutMs ?? options.requestTimeoutMs ?? 5_000;
+  const timeoutMs = resolveTimeoutMs(message, options);
 
   return new Promise<Result<TResponse, ClientError>>((resolve) => {
     /**
@@ -240,7 +252,9 @@ export function createClient(options: CreateClientOptions): FluxBinClient {
   const stateRef = { value: "idle" as ClientTransportState };
 
   options.transport.onFrame(createFrameReceiver(options, pendingByTypeId));
-  options.transport.onStateChange?.(createTransportStateHandler(stateRef));
+  if (options.transport.onStateChange !== undefined) {
+    options.transport.onStateChange(createTransportStateHandler(stateRef));
+  }
 
   async function connect() {
     if (stateRef.value === "open") {

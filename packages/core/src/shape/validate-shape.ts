@@ -43,8 +43,15 @@ export function validateShape(
   limits?: FluxBinLimits,
   depth?: number
 ): Result<true, FluxBinError> {
-  const resolvedLimits = limits ?? DEFAULT_LIMITS;
-  const resolvedDepth = depth ?? 1;
+  let resolvedLimits = DEFAULT_LIMITS;
+  if (limits !== undefined) {
+    resolvedLimits = limits;
+  }
+
+  let resolvedDepth = 1;
+  if (depth !== undefined) {
+    resolvedDepth = depth;
+  }
 
   if (!isShapeObject(shape)) {
     return err(protocolError(ERROR_CODES.INVALID_SHAPE, "Shape must be a plain object.", null));

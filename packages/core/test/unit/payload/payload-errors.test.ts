@@ -40,4 +40,80 @@ describe("payload encode/decode errors", () => {
     const decoded = decodePayload(compiled.value, payload, createOptions());
     expect(decoded.ok).toBe(false);
   });
+
+  it("encodes all supported scalar branches successfully", () => {
+    const compiled = compileShape({
+      active: "bool",
+      count: "u8",
+      delta: "i8",
+      id: "u32",
+      level: "u16",
+      offset: "i16",
+      score: "i32",
+      title: "utf8-string",
+      nested: {
+        city: "utf8-string"
+      }
+    });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) {
+      return;
+    }
+
+    const encoded = encodePayload(
+      compiled.value,
+      {
+        active: true,
+        count: 1,
+        delta: -1,
+        id: 9,
+        level: 2,
+        offset: -2,
+        score: -3,
+        title: "flux",
+        nested: {
+          city: "上海"
+        }
+      },
+      createOptions()
+    );
+
+    expect(encoded.ok).toBe(true);
+  });
+
+  it("rejects out-of-range numeric fields and invalid string fields", () => {
+    const numericShape = compileShape({
+      count: "u8"
+    });
+    expect(numericShape.ok).toBe(true);
+    if (!numericShape.ok) {
+      return;
+    }
+
+    const numericFailure = encodePayload(
+      numericShape.value,
+      {
+        count: 256
+      },
+      createOptions()
+    );
+    expect(numericFailure.ok).toBe(false);
+
+    const stringShape = compileShape({
+      title: "utf8-string"
+    });
+    expect(stringShape.ok).toBe(true);
+    if (!stringShape.ok) {
+      return;
+    }
+
+    const stringFailure = encodePayload(
+      stringShape.value,
+      {
+        title: 123
+      },
+      createOptions()
+    );
+    expect(stringFailure.ok).toBe(false);
+  });
 });
