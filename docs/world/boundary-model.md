@@ -15,10 +15,18 @@ FluxBin 的最终边界模型应当是：
 
 - `env-browser`
 - `env-node`
-- `env-cloudflare`
-- `env-bun`
 
 这类 `env-*` 包属于**唯一边界层**。
+
+当前阶段范围：
+
+- `env-browser`
+- `env-node`
+
+暂不进入当前实现范围：
+
+- `env-cloudflare`
+- `env-bun`
 
 ## 2. 非边界层原则
 
@@ -90,7 +98,7 @@ core <- client <- transport-* <- env-*
 ```text
 client + transport-websocket + env-browser
 client + transport-websocket + env-node
-client + transport-fetch + env-cloudflare
+client + transport-fetch + env-cloudflare   (未来候选，不在当前范围)
 ```
 
 这样做的意义是：

@@ -4,7 +4,8 @@
  * 这个文件定义 descriptor、transport 契约和最小 client API。
  * 它属于 SDK 层，不直接承载协议字节逻辑。
  */
-import type { Registry, Result, Shape } from "@fluxbin/core";
+import type { Registry, Result, TypedRootNode } from "@fluxbin/core";
+import type { RawScalarType, RawScalarTypeValue } from "@fluxbin/core";
 import type { ClientError } from "./errors.js";
 
 export type ClientTransportState = "idle" | "connecting" | "open" | "closed" | "error";
@@ -19,7 +20,7 @@ export type ClientTransport = {
 
 export type MessageDescriptor<TPayload> = {
   name?: string;
-  shape: Shape;
+  shape: TypedRootNode;
   typeId: number;
   _payload?: TPayload;
 };
@@ -29,10 +30,29 @@ export type PublishMessage<TPayload> = {
   payload: TPayload;
 };
 
+export type RawMessageDescriptor<TRawType extends RawScalarType> = {
+  rawType: TRawType;
+};
+
+export type PublishRawMessage<TRawType extends RawScalarType> = {
+  descriptor: RawMessageDescriptor<TRawType>;
+  payload: RawScalarTypeValue<TRawType>;
+};
+
 export type RequestMessage<TRequest, TResponse> = {
   payload: TRequest;
   request: MessageDescriptor<TRequest>;
   response: MessageDescriptor<TResponse>;
+  timeoutMs?: number;
+};
+
+export type RawRequestMessage<
+  TRequestType extends RawScalarType,
+  TResponseType extends RawScalarType
+> = {
+  payload: RawScalarTypeValue<TRequestType>;
+  request: RawMessageDescriptor<TRequestType>;
+  response: RawMessageDescriptor<TResponseType>;
   timeoutMs?: number;
 };
 
@@ -47,5 +67,9 @@ export type FluxBinClient = {
   connect(): Promise<Result<void, ClientError>>;
   disconnect(): Promise<Result<void, ClientError>>;
   publish<TPayload>(message: PublishMessage<TPayload>): Promise<Result<void, ClientError>>;
+  publishRaw<TRawType extends RawScalarType>(message: PublishRawMessage<TRawType>): Promise<Result<void, ClientError>>;
   request<TRequest, TResponse>(message: RequestMessage<TRequest, TResponse>): Promise<Result<TResponse, ClientError>>;
+  requestRaw<TRequestType extends RawScalarType, TResponseType extends RawScalarType>(
+    message: RawRequestMessage<TRequestType, TResponseType>
+  ): Promise<Result<RawScalarTypeValue<TResponseType>, ClientError>>;
 };

@@ -18,7 +18,7 @@ describe("frame + registry integration", () => {
       return;
     }
 
-    const payload = encodePayload(registered.value.compiledShape, { id: 9, name: "flux" }, registry.options);
+    const payload = encodePayload(registered.value.compiledNode, { id: 9, name: "flux" }, registry.options);
     expect(payload.ok).toBe(true);
     if (!payload.ok) {
       return;
@@ -36,13 +36,14 @@ describe("frame + registry integration", () => {
       return;
     }
 
-    const entry = registry.get(decodedFrame.value.frame.typeId);
+    expect(decodedFrame.value.frame.payloadKind).toBe("typed");
+    const entry = registry.get(decodedFrame.value.frame.typeTag);
     expect(entry).toBeDefined();
     if (!entry) {
       return;
     }
 
-    const decodedPayload = decodePayload(entry.compiledShape, decodedFrame.value.frame.payload, registry.options);
+    const decodedPayload = decodePayload(entry.compiledNode, decodedFrame.value.frame.payload, registry.options);
     expect(decodedPayload.ok).toBe(true);
     if (!decodedPayload.ok) {
       return;
@@ -66,10 +67,10 @@ describe("frame + registry integration", () => {
       return;
     }
 
-    const encoded = encodePayload(registered.value.compiledShape, { name: "ab" }, registry.options);
+    const encoded = encodePayload(registered.value.compiledNode, { name: "ab" }, registry.options);
     expect(encoded.ok).toBe(false);
 
-    const shortEncoded = encodePayload(registered.value.compiledShape, { name: "a" }, registry.options);
+    const shortEncoded = encodePayload(registered.value.compiledNode, { name: "a" }, registry.options);
     expect(shortEncoded.ok).toBe(true);
     if (!shortEncoded.ok) {
       return;
@@ -78,7 +79,58 @@ describe("frame + registry integration", () => {
     const tampered = new Uint8Array(shortEncoded.value);
     tampered[0] = 2;
 
-    const decoded = decodePayload(registered.value.compiledShape, tampered, registry.options);
+    const decoded = decodePayload(registered.value.compiledNode, tampered, registry.options);
     expect(decoded.ok).toBe(false);
+  });
+
+  it("roundtrips a typed object-array root through registry", () => {
+    const registry = createRegistry();
+    const registered = registry.register(44, {
+      objectArray: {
+        id: "u32",
+        name: "utf8-string"
+      }
+    });
+
+    expect(registered.ok).toBe(true);
+    if (!registered.ok) {
+      return;
+    }
+
+    const payload = encodePayload(
+      registered.value.compiledNode,
+      [
+        { id: 1, name: "a" },
+        { id: 2, name: "上海" }
+      ],
+      registry.options
+    );
+    expect(payload.ok).toBe(true);
+    if (!payload.ok) {
+      return;
+    }
+
+    const frame = encodeFrame(registered.value.typeId, payload.value, registry.options);
+    expect(frame.ok).toBe(true);
+    if (!frame.ok) {
+      return;
+    }
+
+    const decodedFrame = decodeFrame(frame.value, registry.options);
+    expect(decodedFrame.ok).toBe(true);
+    if (!decodedFrame.ok) {
+      return;
+    }
+
+    const decodedPayload = decodePayload(registered.value.compiledNode, decodedFrame.value.frame.payload, registry.options);
+    expect(decodedPayload.ok).toBe(true);
+    if (!decodedPayload.ok) {
+      return;
+    }
+
+    expect(decodedPayload.value.value).toEqual([
+      { id: 1, name: "a" },
+      { id: 2, name: "上海" }
+    ]);
   });
 });

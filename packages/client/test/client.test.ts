@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRegistry } from "@fluxbin/core";
+import { createRegistry, encodeFrame, encodeFramedPayload, encodeRawValue, getRawTypeCode } from "@fluxbin/core";
 import { createClient } from "../src/client.js";
 import type { ClientTransport } from "../src/types.js";
 import { createWebSocketTransport } from "@fluxbin/transport-websocket";
@@ -95,10 +95,13 @@ class ExampleSocket implements WebSocketLike {
   }
 
   send(data: Uint8Array): void {
-    const responseFrame = new Uint8Array([61, 0, 0, 0, 1, 0, 0, 0, 1]);
+    const responseFrame = encodeFrame(61, new Uint8Array([1]), createRegistry().options);
     void data;
+    if (!responseFrame.ok) {
+      return;
+    }
     queueMicrotask(() => {
-      this.emit("message", { data: responseFrame });
+      this.emit("message", { data: responseFrame.value });
     });
   }
 }
@@ -195,9 +198,12 @@ describe("client", () => {
       return;
     }
 
-    const responsePayload = new Uint8Array([1]);
-    const responseFrame = new Uint8Array([3, 0, 0, 0, 1, 0, 0, 0, ...responsePayload]);
-    mockTransport.emit(responseFrame);
+    const responseFrame = encodeFrame(3, new Uint8Array([1]), registry.options);
+    expect(responseFrame.ok).toBe(true);
+    if (!responseFrame.ok) {
+      return;
+    }
+    mockTransport.emit(responseFrame.value);
 
     const requestResult = await requestPromise;
     expect(requestResult.ok).toBe(true);
@@ -430,7 +436,12 @@ describe("client", () => {
 
     decodeTransport.emit(new Uint8Array([1, 2, 3]));
     decodeTransport.emit(new Uint8Array([9, 0, 0, 0, 0, 0, 0, 0]));
-    decodeTransport.emit(new Uint8Array([51, 0, 0, 0, 1, 0, 0, 0, 9]));
+    const invalidResponseFrame = encodeFrame(51, new Uint8Array([9]), decodeRegistry.options);
+    expect(invalidResponseFrame.ok).toBe(true);
+    if (!invalidResponseFrame.ok) {
+      return;
+    }
+    decodeTransport.emit(invalidResponseFrame.value);
 
     const decodeFailure = await pendingRequest;
     expect(decodeFailure.ok).toBe(false);
@@ -488,5 +499,63 @@ describe("client", () => {
     });
 
     expect(requestResult.ok).toBe(true);
+  });
+
+  it("publishes and requests raw scalar frames", async () => {
+    const mockTransport = createMockTransport();
+    const registry = createRegistry();
+    const client = createClient({
+      registry,
+      requestTimeoutMs: 25,
+      transport: mockTransport.transport
+    });
+
+    await client.connect();
+
+    const publishResult = await client.publishRaw({
+      descriptor: {
+        rawType: "utf8-string"
+      },
+      payload: "raw ping"
+    });
+    expect(publishResult.ok).toBe(true);
+    expect(mockTransport.sentFrames).toHaveLength(1);
+
+    const rawRequestPromise = client.requestRaw({
+      payload: 7,
+      request: {
+        rawType: "u32"
+      },
+      response: {
+        rawType: "bool"
+      }
+    });
+
+    const rawPayload = encodeRawValue("bool", true, registry.options);
+    expect(rawPayload.ok).toBe(true);
+    if (!rawPayload.ok) {
+      return;
+    }
+
+    const rawResponseFrame = encodeFramedPayload(
+      "raw",
+      getRawTypeCode("bool"),
+      rawPayload.value,
+      registry.options
+    );
+    expect(rawResponseFrame.ok).toBe(true);
+    if (!rawResponseFrame.ok) {
+      return;
+    }
+
+    mockTransport.emit(rawResponseFrame.value);
+
+    const rawRequestResult = await rawRequestPromise;
+    expect(rawRequestResult.ok).toBe(true);
+    if (!rawRequestResult.ok) {
+      return;
+    }
+
+    expect(rawRequestResult.value).toBe(true);
   });
 });

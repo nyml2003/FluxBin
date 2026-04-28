@@ -8,7 +8,16 @@
  * - `env-node` 负责边界注入
  * - `devtools` 负责开发辅助
  */
-import { createRegistry, decodeFrame, decodePayload, encodeFrame, encodePayload } from "@fluxbin/core";
+import {
+  createRegistry,
+  decodeFrame,
+  decodePayload,
+  decodeRawValue,
+  encodeFrame,
+  encodeFramedPayload,
+  encodePayload,
+  encodeRawValue
+} from "@fluxbin/core";
 import { createClient } from "@fluxbin/client";
 import { createFixture, inspectFrame } from "@fluxbin/devtools";
 import { createLoopbackWebSocketBoundary } from "@fluxbin/env-node";
@@ -59,12 +68,22 @@ boundary.setServerHandler((serverSocket) => {
       return;
     }
 
-    const payload = decodePayload(requestEntry.compiledShape, decoded.value.frame.payload, registry.options);
+    if (decoded.value.frame.payloadKind === "raw") {
+      const rawValue = decodeRawValue("utf8-string", decoded.value.frame.payload, registry.options);
+      if (!rawValue.ok) {
+        return;
+      }
+
+      console.log("server raw payload:", rawValue.value);
+      return;
+    }
+
+    const payload = decodePayload(requestEntry.compiledNode, decoded.value.frame.payload, registry.options);
     if (!payload.ok) {
       return;
     }
 
-    const encodedResponsePayload = encodePayload(responseEntry.compiledShape, { ok: true }, registry.options);
+    const encodedResponsePayload = encodePayload(responseEntry.compiledNode, { ok: true }, registry.options);
     if (!encodedResponsePayload.ok) {
       return;
     }
@@ -106,6 +125,16 @@ async function main() {
     throw new Error(requestResult.error.message);
   }
 
+  const rawPublishResult = await client.publishRaw({
+    descriptor: {
+      rawType: "utf8-string"
+    },
+    payload: "hello raw mode"
+  });
+  if (!rawPublishResult.ok) {
+    throw new Error(rawPublishResult.error.message);
+  }
+
   const fixture = createFixture(
     {
       name: "example-city.v1",
@@ -120,8 +149,19 @@ async function main() {
     registry
   );
 
+  const rawBytes = encodeRawValue("bool", true, registry.options);
+  if (!rawBytes.ok) {
+    throw new Error(rawBytes.error.message);
+  }
+
+  const rawFrame = encodeFramedPayload("raw", 7, rawBytes.value, registry.options);
+  if (!rawFrame.ok) {
+    throw new Error(rawFrame.error.message);
+  }
+
   console.log("request result:", requestResult.value);
   console.log("fixture inspect:", inspectFrame(fixture.frameBytes, registry));
+  console.log("raw inspect:", inspectFrame(rawFrame.value, registry));
 }
 
 await main();

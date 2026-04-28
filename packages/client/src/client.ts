@@ -7,10 +7,16 @@
 import {
   decodeFrame,
   decodePayload,
+  decodeRawValue,
   encodeFrame,
+  encodeFramedPayload,
   encodePayload,
+  encodeRawValue,
   err,
+  getRawTypeCode,
   ok,
+  type RawScalarType,
+  type RawScalarTypeValue,
   type RegisteredShape,
   type Result
 } from "@fluxbin/core";
@@ -22,14 +28,26 @@ import type {
   FluxBinClient,
   MessageDescriptor,
   PublishMessage,
+  PublishRawMessage,
+  RawRequestMessage,
   RequestMessage
 } from "./types.js";
 
-type PendingRequest = {
+type TypedPendingRequest = {
+  kind: "typed";
   resolve: (result: Result<unknown, ClientError>) => void;
   responseShape: RegisteredShape;
   timeoutHandle: ReturnType<typeof setTimeout> | null;
 };
+
+type RawPendingRequest = {
+  kind: "raw";
+  resolve: (result: Result<unknown, ClientError>) => void;
+  responseRawType: RawScalarType;
+  timeoutHandle: ReturnType<typeof setTimeout> | null;
+};
+
+type PendingRequest = RawPendingRequest | TypedPendingRequest;
 
 function createTransportError(message: string, details: unknown): ClientError {
   return createClientError("CLIENT_TRANSPORT_ERROR", message, details);
@@ -58,35 +76,43 @@ function ensureRegistered<TPayload>(
 }
 
 function createPendingRequestMap() {
-  return new Map<number, PendingRequest[]>();
+  return new Map<string, PendingRequest[]>();
+}
+
+function createPendingRequestKey(payloadKind: "raw" | "typed", typeTag: number) {
+  return `${payloadKind}:${String(typeTag)}`;
 }
 
 function enqueuePendingRequest(
-  pendingByTypeId: Map<number, PendingRequest[]>,
-  responseTypeId: number,
+  pendingByKey: Map<string, PendingRequest[]>,
+  payloadKind: "raw" | "typed",
+  responseTypeTag: number,
   pending: PendingRequest
 ) {
-  const existing = pendingByTypeId.get(responseTypeId);
+  const pendingKey = createPendingRequestKey(payloadKind, responseTypeTag);
+  const existing = pendingByKey.get(pendingKey);
   if (existing !== undefined) {
     existing.push(pending);
     return;
   }
 
-  pendingByTypeId.set(responseTypeId, [pending]);
+  pendingByKey.set(pendingKey, [pending]);
 }
 
 function dequeuePendingRequest(
-  pendingByTypeId: Map<number, PendingRequest[]>,
-  responseTypeId: number
+  pendingByKey: Map<string, PendingRequest[]>,
+  payloadKind: "raw" | "typed",
+  responseTypeTag: number
 ): PendingRequest | undefined {
-  const queue = pendingByTypeId.get(responseTypeId);
+  const pendingKey = createPendingRequestKey(payloadKind, responseTypeTag);
+  const queue = pendingByKey.get(pendingKey);
   if (queue === undefined) {
     return undefined;
   }
 
   const nextPending = queue.shift();
   if (queue.length === 0) {
-    pendingByTypeId.delete(responseTypeId);
+    pendingByKey.delete(pendingKey);
   }
 
   return nextPending;
@@ -94,7 +120,7 @@ function dequeuePendingRequest(
 
 function createFrameReceiver(
   options: CreateClientOptions,
-  pendingByTypeId: Map<number, PendingRequest[]>
+  pendingByKey: Map<string, PendingRequest[]>
 ) {
   return (frameBytes: Uint8Array) => {
     const decodedFrame = decodeFrame(frameBytes, options.registry.options);
@@ -102,7 +128,11 @@ function createFrameReceiver(
       return;
     }
 
-    const pending = dequeuePendingRequest(pendingByTypeId, decodedFrame.value.frame.typeId);
+    const pending = dequeuePendingRequest(
+      pendingByKey,
+      decodedFrame.value.frame.payloadKind,
+      decodedFrame.value.frame.typeTag
+    );
     if (pending === undefined) {
       return;
     }
@@ -111,8 +141,23 @@ function createFrameReceiver(
       clearTimeout(pending.timeoutHandle);
     }
 
+    if (pending.kind === "raw") {
+      const decodedRawValue = decodeRawValue(
+        pending.responseRawType,
+        decodedFrame.value.frame.payload,
+        options.registry.options
+      );
+      if (!decodedRawValue.ok) {
+        pending.resolve(err(createProtocolError("解码 raw 响应 payload 失败。", decodedRawValue.error)));
+        return;
+      }
+
+      pending.resolve(ok(decodedRawValue.value));
+      return;
+    }
+
     const decodedPayload = decodePayload(
-      pending.responseShape.compiledShape,
+      pending.responseShape.compiledNode,
       decodedFrame.value.frame.payload,
       options.registry.options
     );
@@ -131,7 +176,7 @@ function createTransportStateHandler(stateRef: { value: ClientTransportState }) 
   };
 }
 
-function resolveTimeoutMs(message: RequestMessage<unknown, unknown>, options: CreateClientOptions): number {
+function resolveTimeoutMs(message: { timeoutMs?: number }, options: CreateClientOptions): number {
   let timeoutMs = 5_000;
   if (options.requestTimeoutMs !== undefined) {
     timeoutMs = options.requestTimeoutMs;
@@ -159,8 +204,8 @@ async function publishMessage<TPayload>(
   }
 
   const encodedPayload = encodePayload(
-    registered.value.compiledShape,
-    message.payload as Record<string, unknown>,
+    registered.value.compiledNode,
+    message.payload,
     options.registry.options
   );
   if (!encodedPayload.ok) {
@@ -180,11 +225,44 @@ async function publishMessage<TPayload>(
   }
 }
 
+async function publishRawMessage<TRawType extends RawScalarType>(
+  options: CreateClientOptions,
+  transport: ClientTransport,
+  stateRef: { value: ClientTransportState },
+  message: PublishRawMessage<TRawType>
+): Promise<Result<void, ClientError>> {
+  if (stateRef.value !== "open") {
+    return err(createClientError("CLIENT_NOT_CONNECTED", "客户端未连接，不能 publishRaw。"));
+  }
+
+  const encodedPayload = encodeRawValue(message.descriptor.rawType, message.payload, options.registry.options);
+  if (!encodedPayload.ok) {
+    return err(createProtocolError("编码 raw publish payload 失败。", encodedPayload.error));
+  }
+
+  const encodedFrame = encodeFramedPayload(
+    "raw",
+    getRawTypeCode(message.descriptor.rawType),
+    encodedPayload.value,
+    options.registry.options
+  );
+  if (!encodedFrame.ok) {
+    return err(createProtocolError("编码 raw publish frame 失败。", encodedFrame.error));
+  }
+
+  try {
+    await transport.send(encodedFrame.value);
+    return ok(undefined);
+  } catch (transportFailure) {
+    return err(createTransportError("raw publish 发送失败。", transportFailure));
+  }
+}
+
 async function requestMessage<TRequest, TResponse>(
   options: CreateClientOptions,
   transport: ClientTransport,
   stateRef: { value: ClientTransportState },
-  pendingByTypeId: Map<number, PendingRequest[]>,
+  pendingByKey: Map<string, PendingRequest[]>,
   message: RequestMessage<TRequest, TResponse>
 ): Promise<Result<TResponse, ClientError>> {
   if (stateRef.value !== "open") {
@@ -202,8 +280,8 @@ async function requestMessage<TRequest, TResponse>(
   }
 
   const encodedPayload = encodePayload(
-    requestShape.value.compiledShape,
-    message.payload as Record<string, unknown>,
+    requestShape.value.compiledNode,
+    message.payload,
     options.registry.options
   );
   if (!encodedPayload.ok) {
@@ -223,6 +301,7 @@ async function requestMessage<TRequest, TResponse>(
      * 否则极快返回的 response 可能在映射表建立前到达，导致请求丢失。
      */
     const pending: PendingRequest = {
+      kind: "typed",
       resolve(result) {
         resolve(result as Result<TResponse, ClientError>);
       },
@@ -230,10 +309,10 @@ async function requestMessage<TRequest, TResponse>(
       timeoutHandle: null
     };
 
-    enqueuePendingRequest(pendingByTypeId, message.response.typeId, pending);
+    enqueuePendingRequest(pendingByKey, "typed", message.response.typeId, pending);
 
     pending.timeoutHandle = setTimeout(() => {
-      dequeuePendingRequest(pendingByTypeId, message.response.typeId);
+      dequeuePendingRequest(pendingByKey, "typed", message.response.typeId);
       resolve(err(createClientError("CLIENT_REQUEST_TIMEOUT", "请求超时。")));
     }, timeoutMs);
 
@@ -241,17 +320,72 @@ async function requestMessage<TRequest, TResponse>(
       if (pending.timeoutHandle !== null) {
         clearTimeout(pending.timeoutHandle);
       }
-      dequeuePendingRequest(pendingByTypeId, message.response.typeId);
+      dequeuePendingRequest(pendingByKey, "typed", message.response.typeId);
       resolve(err(createTransportError("request 发送失败。", transportFailure)));
     });
   });
 }
 
+async function requestRawMessage<
+  TRequestType extends RawScalarType,
+  TResponseType extends RawScalarType
+>(
+  options: CreateClientOptions,
+  transport: ClientTransport,
+  stateRef: { value: ClientTransportState },
+  pendingByKey: Map<string, PendingRequest[]>,
+  message: RawRequestMessage<TRequestType, TResponseType>
+): Promise<Result<RawScalarTypeValue<TResponseType>, ClientError>> {
+  if (stateRef.value !== "open") {
+    return err(createClientError("CLIENT_NOT_CONNECTED", "客户端未连接，不能 requestRaw。"));
+  }
+
+  const encodedPayload = encodeRawValue(message.request.rawType, message.payload, options.registry.options);
+  if (!encodedPayload.ok) {
+    return err(createProtocolError("编码 raw request payload 失败。", encodedPayload.error));
+  }
+
+  const requestTypeTag = getRawTypeCode(message.request.rawType);
+  const responseTypeTag = getRawTypeCode(message.response.rawType);
+  const encodedFrame = encodeFramedPayload("raw", requestTypeTag, encodedPayload.value, options.registry.options);
+  if (!encodedFrame.ok) {
+    return err(createProtocolError("编码 raw request frame 失败。", encodedFrame.error));
+  }
+
+  const timeoutMs = resolveTimeoutMs(message, options);
+
+  return new Promise<Result<RawScalarTypeValue<TResponseType>, ClientError>>((resolve) => {
+    const pending: PendingRequest = {
+      kind: "raw",
+      resolve(result) {
+        resolve(result as Result<RawScalarTypeValue<TResponseType>, ClientError>);
+      },
+      responseRawType: message.response.rawType,
+      timeoutHandle: null
+    };
+
+    enqueuePendingRequest(pendingByKey, "raw", responseTypeTag, pending);
+
+    pending.timeoutHandle = setTimeout(() => {
+      dequeuePendingRequest(pendingByKey, "raw", responseTypeTag);
+      resolve(err(createClientError("CLIENT_REQUEST_TIMEOUT", "请求超时。")));
+    }, timeoutMs);
+
+    void transport.send(encodedFrame.value).catch((transportFailure) => {
+      if (pending.timeoutHandle !== null) {
+        clearTimeout(pending.timeoutHandle);
+      }
+      dequeuePendingRequest(pendingByKey, "raw", responseTypeTag);
+      resolve(err(createTransportError("raw request 发送失败。", transportFailure)));
+    });
+  });
+}
+
 export function createClient(options: CreateClientOptions): FluxBinClient {
-  const pendingByTypeId = createPendingRequestMap();
+  const pendingByKey = createPendingRequestMap();
   const stateRef = { value: "idle" as ClientTransportState };
 
-  options.transport.onFrame(createFrameReceiver(options, pendingByTypeId));
+  options.transport.onFrame(createFrameReceiver(options, pendingByKey));
   if (options.transport.onStateChange !== undefined) {
     options.transport.onStateChange(createTransportStateHandler(stateRef));
   }
@@ -290,8 +424,14 @@ export function createClient(options: CreateClientOptions): FluxBinClient {
     publish(message) {
       return publishMessage(options, options.transport, stateRef, message);
     },
+    publishRaw(message) {
+      return publishRawMessage(options, options.transport, stateRef, message);
+    },
     request(message) {
-      return requestMessage(options, options.transport, stateRef, pendingByTypeId, message);
+      return requestMessage(options, options.transport, stateRef, pendingByKey, message);
+    },
+    requestRaw(message) {
+      return requestRawMessage(options, options.transport, stateRef, pendingByKey, message);
     }
   };
 }

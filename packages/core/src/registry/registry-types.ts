@@ -1,7 +1,7 @@
 import type { FluxBinLimits } from "../limits/default-limits.js";
 import type { Endian } from "../types/common.js";
-import type { CompiledShape } from "../shape/compiled-shape.js";
-import type { Shape } from "../shape/shape-node.js";
+import type { CompiledRootNode } from "../shape/compiled-shape.js";
+import type { TypedRootNode } from "../shape/shape-node.js";
 import type { FluxBinError } from "../errors/error-types.js";
 import type { Result } from "../types/result.js";
 
@@ -9,8 +9,8 @@ export type RegistryMeta = {
   name?: string;
 };
 
-export type RegisteredShape<S extends Shape = Shape> = {
-  compiledShape: CompiledShape;
+export type RegisteredShape<S extends TypedRootNode = TypedRootNode> = {
+  compiledNode: CompiledRootNode;
   meta?: RegistryMeta;
   shape: S;
   typeId: number;
@@ -30,5 +30,5 @@ export type Registry = {
   get(typeId: number): RegisteredShape | undefined;
   has(typeId: number): boolean;
   options: RegistryOptions;
-  register<const S extends Shape>(typeId: number, shape: S, meta?: RegistryMeta): Result<RegisteredShape<S>, FluxBinError>;
+  register<const S extends TypedRootNode>(typeId: number, shape: S, meta?: RegistryMeta): Result<RegisteredShape<S>, FluxBinError>;
 };

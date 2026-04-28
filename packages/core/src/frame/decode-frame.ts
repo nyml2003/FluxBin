@@ -1,7 +1,9 @@
-import { err, needMoreData, ok } from "../errors/result-factories.js";
+import { err, needMoreData, ok, protocolError } from "../errors/result-factories.js";
+import { ERROR_CODES } from "../errors/error-codes.js";
 import type { FluxBinError } from "../errors/error-types.js";
 import type { FluxBinOptions } from "../limits/default-limits.js";
 import type { Result } from "../types/result.js";
+import { computeFrameChecksum } from "./frame-checksum.js";
 import { decodeFrameHeader } from "./frame-header.js";
 import type { DecodedFrame } from "./frame-types.js";
 
@@ -29,11 +31,27 @@ export function decodeFrame(
   }
 
   const payload = bytes.slice(payloadOffset, payloadOffset + payloadLength);
+  const actualPayloadChecksum = computeFrameChecksum(payload);
+  if (actualPayloadChecksum !== headerResult.value.header.payloadChecksum) {
+    return err(
+      protocolError(
+        ERROR_CODES.PAYLOAD_CHECKSUM_MISMATCH,
+        "Frame payload checksum does not match.",
+        payloadOffset
+      )
+    );
+  }
+
   return ok({
     frame: {
+      flags: headerResult.value.header.flags,
+      headerChecksum: headerResult.value.header.headerChecksum,
       payload,
+      payloadKind: headerResult.value.header.payloadKind,
       payloadLength,
-      typeId: headerResult.value.header.typeId
+      payloadChecksum: headerResult.value.header.payloadChecksum,
+      typeTag: headerResult.value.header.typeTag,
+      version: headerResult.value.header.version
     },
     nextOffset: payloadOffset + payloadLength
   });

@@ -98,7 +98,7 @@ FluxBin 不只是一个“协议实现仓库”，它最终会演化成一个由
 
 边界层只由 `env-*` 包组成。
 
-建议：
+未来候选：
 
 - `packages/env-browser`
 - `packages/env-node`
@@ -122,8 +122,8 @@ packages/
   devtools/
   env-browser/
   env-node/
-  env-cloudflare/
-  env-bun/
+  env-cloudflare/   # 未来候选，不在当前范围
+  env-bun/          # 未来候选，不在当前范围
   bench/
 ```
 

@@ -38,6 +38,59 @@ describe("compileShape", () => {
     expect(result.value.depth).toBe(2);
   });
 
+  it("compiles tuple roots and nested tuples", () => {
+    const result = compileShape({
+      tuple: ["u32", "utf8-string", { tuple: ["bool", "i16"] }]
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.value.kind).toBe("tuple");
+    expect(result.value.fixedWidth).toBe(false);
+    expect(result.value.depth).toBe(2);
+    if (result.value.kind === "tuple") {
+      expect(result.value.items).toHaveLength(3);
+      expect(result.value.items[2]?.kind).toBe("tuple");
+    }
+  });
+
+  it("compiles objectArray, scalarArray, and objectArray roots", () => {
+    const typedFieldArrays = compileShape({
+      ids: { scalarArray: "u32" },
+      users: {
+        objectArray: {
+          active: "bool",
+          name: "utf8-string"
+        }
+      }
+    });
+
+    expect(typedFieldArrays.ok).toBe(true);
+    if (!typedFieldArrays.ok) {
+      return;
+    }
+
+    expect(typedFieldArrays.value.kind).toBe("shape");
+    expect(typedFieldArrays.value.fixedWidth).toBe(false);
+
+    const objectArrayRoot = compileShape({
+      objectArray: {
+        id: "u32",
+        label: "utf8-string"
+      }
+    });
+
+    expect(objectArrayRoot.ok).toBe(true);
+    if (!objectArrayRoot.ok) {
+      return;
+    }
+
+    expect(objectArrayRoot.value.kind).toBe("object-array");
+  });
+
   it("rejects non-plain objects as shapes", () => {
     const dateResult = validateShape(new Date() as never);
     expect(dateResult.ok).toBe(false);
@@ -52,6 +105,12 @@ describe("compileShape", () => {
 
     const invalidNested = validateShape({ child: 1 as never });
     expect(invalidNested.ok).toBe(false);
+
+    const emptyTuple = validateShape({ tuple: [] });
+    expect(emptyTuple.ok).toBe(false);
+
+    const invalidScalarArray = validateShape({ values: { scalarArray: { id: "u32" } as never } });
+    expect(invalidScalarArray.ok).toBe(false);
 
     const options = createOptions({
       limits: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeFrame } from "../../../src/frame/decode-frame.js";
 import { encodeFrame } from "../../../src/frame/encode-frame.js";
+import { FRAME_VERSION } from "../../../src/frame/frame-types.js";
 import { DEFAULT_OPTIONS } from "../../../src/limits/default-limits.js";
 
 describe("frame codec", () => {
@@ -18,7 +19,12 @@ describe("frame codec", () => {
       return;
     }
 
-    expect(decoded.value.frame.typeId).toBe(7);
+    expect(decoded.value.frame.payloadKind).toBe("typed");
+    expect(decoded.value.frame.version).toBe(FRAME_VERSION);
+    expect(decoded.value.frame.flags).toBe(0);
+    expect(decoded.value.frame.headerChecksum).toBeGreaterThan(0);
+    expect(decoded.value.frame.payloadChecksum).toBeGreaterThan(0);
+    expect(decoded.value.frame.typeTag).toBe(7);
     expect(Array.from(decoded.value.frame.payload)).toEqual([1, 2, 3, 4]);
   });
 

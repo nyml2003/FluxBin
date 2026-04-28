@@ -33,6 +33,14 @@ FluxBin 不追求“同一 shape 内的宽松兼容”。
 
 - 一个 `typeId` 对应一个稳定 ABI
 
+补充：
+
+- 外层 frame envelope 也有独立 `version`
+- envelope 级 breaking change 不应偷偷复用旧 version
+- `typed` 模式的结构演进由 `typeId` 承载
+- `raw` 模式不使用 `typeId`
+- 新增基础原始类型时，应显式评估是否同时进入 `raw` 顶层支持面
+
 ## 2. 错误模型
 
 至少区分三种状态：
@@ -62,6 +70,11 @@ FluxBin 不追求“同一 shape 内的宽松兼容”。
 适用于：
 
 - 未知 `typeId`
+- 非法 `magic`
+- 不支持的 `version`
+- 非法 `flags`
+- `headerChecksum` 不匹配
+- `payloadChecksum` 不匹配
 - 长度头超限
 - 非法 UTF-8
 - `bool` 非法值
@@ -70,6 +83,22 @@ FluxBin 不追求“同一 shape 内的宽松兼容”。
 - 解析中越界
 
 建议实现层定义稳定错误码。
+
+## 2.4 当前 envelope 版本策略
+
+当前实现采用：
+
+- 固定 `magic`
+- 固定 `version = 1`
+- `payloadChecksum`
+- `headerChecksum`
+- 显式 resync
+
+因此未来如果要调整 envelope 字段布局，应优先：
+
+1. 先升级 `version`
+2. 再实现双版本解码或迁移策略
+3. 不要在同一 version 下静默修改头部布局
 
 ## 3. 安全上限
 

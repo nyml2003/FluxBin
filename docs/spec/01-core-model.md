@@ -26,6 +26,31 @@ Core 层建议支持：
 - `bool`
 - `utf8-string`
 - nested `shape`
+- `tuple`
+- `object-array`
+- `scalar-array`
+
+此外，Core 层允许这些基础类型作为 `raw` 顶层负载直接传输：
+
+- `u8`
+- `i8`
+- `u16`
+- `i16`
+- `u32`
+- `i32`
+- `bool`
+- `utf8-string`
+
+Core 层当前也允许 raw 顶层原始值数组：
+
+- `u8[]`
+- `i8[]`
+- `u16[]`
+- `i16[]`
+- `u32[]`
+- `i32[]`
+- `bool[]`
+- `utf8-string[]`
 
 ### 2.1 bool
 
@@ -64,6 +89,35 @@ Core 层建议支持：
 - 一份 shape + 一份独立 interface 分别维护
 - 运行时布局和类型声明脱节
 
+补充：
+
+- `shape` 只约束 `typed` 模式
+- `raw` 模式下不使用 `shape`
+- `raw` 当前承载：
+  - 单个顶层原始值
+  - 顶层原始值数组
+- `raw` 不承载结构化业务消息
+
+下一步设计里，`typed` 的 schema 方向会从“纯 object”扩成“统一节点”：
+
+- primitive
+- object
+- object-array
+- scalar-array
+- tuple
+
+这里说的“统一节点”是 schema/编译模型层的统一。
+
+不是：
+
+- 在 wire 里给每个节点都写一个 `u8` 类型 tag
+
+FluxBin 的默认 payload 仍然尽量保持：
+
+- 不自描述
+- 固定布局
+- 由外部 schema 决定解释方式
+
 ## 4. shape 的最小表达
 
 推荐把 `shape` 视为纯声明式对象：
@@ -88,6 +142,40 @@ const UserShape = {
 - 编码策略 tag
 
 Core shape 应尽量保持干净。
+
+但在下一步扩展里，顶层 typed schema 不再只限于 object。
+
+建议的 typed root 方向：
+
+```ts
+type TypedRootNode =
+  | ObjectSchema
+  | { objectArray: ObjectSchema }
+  | { tuple: readonly SchemaNode[] };
+```
+
+例子：
+
+```ts
+// typed object
+{
+  id: "u32",
+  name: "utf8-string"
+}
+
+// typed object-array
+{
+  objectArray: {
+    id: "u32",
+    name: "utf8-string"
+  }
+}
+
+// typed tuple
+{
+  tuple: ["u32", "bool", "utf8-string"]
+}
+```
 
 ## 5. null 的处理
 

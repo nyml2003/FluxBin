@@ -116,4 +116,86 @@ describe("payload encode/decode errors", () => {
     );
     expect(stringFailure.ok).toBe(false);
   });
+
+  it("encodes and decodes tuple roots, and rejects tuple shape mismatches", () => {
+    const compiled = compileShape({
+      tuple: ["u32", "utf8-string", { tuple: ["bool", "i16"] }]
+    });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) {
+      return;
+    }
+
+    const encoded = encodePayload(compiled.value, [9, "上海", [true, -2]], createOptions());
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      return;
+    }
+
+    const decoded = decodePayload(compiled.value, encoded.value, createOptions());
+    expect(decoded.ok).toBe(true);
+    if (!decoded.ok) {
+      return;
+    }
+
+    expect(decoded.value.value).toEqual([9, "上海", [true, -2]]);
+
+    const wrongLength = encodePayload(compiled.value, [9, "上海"], createOptions());
+    expect(wrongLength.ok).toBe(false);
+
+    const wrongType = encodePayload(compiled.value, [9, "上海", "bad"], createOptions());
+    expect(wrongType.ok).toBe(false);
+  });
+
+  it("encodes and decodes objectArray and scalarArray fields", () => {
+    const compiled = compileShape({
+      ids: { scalarArray: "u32" },
+      users: {
+        objectArray: {
+          active: "bool",
+          name: "utf8-string"
+        }
+      }
+    });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) {
+      return;
+    }
+
+    const encoded = encodePayload(
+      compiled.value,
+      {
+        ids: [1, 2, 3],
+        users: [
+          { active: true, name: "a" },
+          { active: false, name: "上海" }
+        ]
+      },
+      createOptions()
+    );
+    expect(encoded.ok).toBe(true);
+    if (!encoded.ok) {
+      return;
+    }
+
+    const decoded = decodePayload(compiled.value, encoded.value, createOptions());
+    expect(decoded.ok).toBe(true);
+    if (!decoded.ok) {
+      return;
+    }
+
+    expect(decoded.value.value).toEqual({
+      ids: [1, 2, 3],
+      users: [
+        { active: true, name: "a" },
+        { active: false, name: "上海" }
+      ]
+    });
+
+    const badScalarArray = encodePayload(compiled.value, { ids: "bad", users: [] }, createOptions());
+    expect(badScalarArray.ok).toBe(false);
+
+    const badObjectArray = encodePayload(compiled.value, { ids: [], users: ["bad"] }, createOptions());
+    expect(badObjectArray.ok).toBe(false);
+  });
 });

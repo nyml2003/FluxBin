@@ -2,7 +2,7 @@ import { ERROR_CODES } from "../errors/error-codes.js";
 import { createOptions } from "../limits/default-limits.js";
 import { err, ok, protocolError } from "../errors/result-factories.js";
 import { compileShape } from "../shape/compile-shape.js";
-import type { Shape } from "../shape/shape-node.js";
+import type { TypedRootNode } from "../shape/shape-node.js";
 import type { Registry, RegistryMeta, RegistryOptions, RegistryOptionsInput, RegisteredShape } from "./registry-types.js";
 
 export function createRegistry(options?: RegistryOptionsInput): Registry {
@@ -14,7 +14,7 @@ export function createRegistry(options?: RegistryOptionsInput): Registry {
   }) as RegistryOptions;
   const entries = new Map<number, RegisteredShape>();
 
-  function register<const S extends Shape>(typeId: number, shape: S, meta?: RegistryMeta) {
+  function register<const S extends TypedRootNode>(typeId: number, shape: S, meta?: RegistryMeta) {
     if (!Number.isInteger(typeId) || typeId < 0) {
       return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "typeId must be a non-negative integer.", null));
     }
@@ -31,7 +31,7 @@ export function createRegistry(options?: RegistryOptionsInput): Registry {
     }
 
     const entry: RegisteredShape<S> = {
-      compiledShape: compiled.value,
+      compiledNode: compiled.value,
       shape,
       typeId
     };

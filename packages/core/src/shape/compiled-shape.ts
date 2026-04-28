@@ -1,26 +1,58 @@
-import type { PrimitiveShapeNode, Shape } from "./shape-node.js";
+import type { PrimitiveShapeNode, SchemaNode, Shape } from "./shape-node.js";
 
-export type CompiledScalarField = {
-  key: string;
+export type CompiledPrimitiveNode = {
   kind: PrimitiveShapeNode;
   fixedWidth: boolean;
   byteWidth: number | null;
+  staticByteLength: number | null;
+  depth: number;
 };
 
-export type CompiledNestedShapeField = {
+export type CompiledField = {
   key: string;
-  kind: "shape";
-  fixedWidth: boolean;
-  byteWidth: number | null;
-  shape: CompiledShape;
+  node: CompiledNode;
 };
-
-export type CompiledField = CompiledScalarField | CompiledNestedShapeField;
 
 export type CompiledShape = {
+  kind: "shape";
   fields: readonly CompiledField[];
   fixedWidth: boolean;
   staticByteLength: number | null;
   depth: number;
   sourceShape: Shape;
 };
+
+export type CompiledTupleNode = {
+  kind: "tuple";
+  items: readonly CompiledNode[];
+  fixedWidth: boolean;
+  staticByteLength: number | null;
+  depth: number;
+  sourceTuple: readonly SchemaNode[];
+};
+
+export type CompiledObjectArrayNode = {
+  kind: "object-array";
+  item: CompiledShape;
+  fixedWidth: false;
+  staticByteLength: null;
+  depth: number;
+  sourceShape: Shape;
+};
+
+export type CompiledScalarArrayNode = {
+  kind: "scalar-array";
+  item: PrimitiveShapeNode;
+  fixedWidth: false;
+  staticByteLength: null;
+  depth: number;
+};
+
+export type CompiledNode =
+  | CompiledPrimitiveNode
+  | CompiledShape
+  | CompiledTupleNode
+  | CompiledObjectArrayNode
+  | CompiledScalarArrayNode;
+
+export type CompiledRootNode = CompiledShape | CompiledTupleNode | CompiledObjectArrayNode;

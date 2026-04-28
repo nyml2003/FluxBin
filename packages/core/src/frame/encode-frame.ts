@@ -3,11 +3,40 @@ import type { FluxBinOptions } from "../limits/default-limits.js";
 import { err, ok, protocolError } from "../errors/result-factories.js";
 import type { FluxBinError } from "../errors/error-types.js";
 import type { Result } from "../types/result.js";
+import { computeFrameChecksum } from "./frame-checksum.js";
 import { encodeFrameHeader } from "./frame-header.js";
-import { FRAME_HEADER_BYTES } from "./frame-types.js";
+import { FRAME_FLAG_RAW_ARRAY, FRAME_HEADER_BYTES, FRAME_VERSION } from "./frame-types.js";
+import type { PayloadKind } from "./frame-types.js";
 
 export function encodeFrame(
-  typeId: number,
+  typeTag: number,
+  payload: Uint8Array,
+  options: FluxBinOptions
+): Result<Uint8Array, FluxBinError> {
+  return encodeFramedPayload("typed", typeTag, payload, options);
+}
+
+export function encodeFramedPayload(
+  payloadKind: PayloadKind,
+  typeTag: number,
+  payload: Uint8Array,
+  options: FluxBinOptions
+): Result<Uint8Array, FluxBinError> {
+  return encodeFramedPayloadWithFlags(payloadKind, 0, typeTag, payload, options);
+}
+
+export function encodeRawArrayFrame(
+  typeTag: number,
+  payload: Uint8Array,
+  options: FluxBinOptions
+): Result<Uint8Array, FluxBinError> {
+  return encodeFramedPayloadWithFlags("raw", FRAME_FLAG_RAW_ARRAY, typeTag, payload, options);
+}
+
+export function encodeFramedPayloadWithFlags(
+  payloadKind: PayloadKind,
+  flags: number,
+  typeTag: number,
   payload: Uint8Array,
   options: FluxBinOptions
 ): Result<Uint8Array, FluxBinError> {
@@ -26,7 +55,18 @@ export function encodeFrame(
     return err(protocolError(ERROR_CODES.FRAME_TOO_LARGE, `Frame length ${String(totalFrameBytes)} exceeds maxFrameBytes.`, null));
   }
 
-  const header = encodeFrameHeader({ payloadLength: payload.byteLength, typeId }, options);
+  const payloadChecksum = computeFrameChecksum(payload);
+  const header = encodeFrameHeader(
+    {
+      flags,
+      payloadChecksum,
+      payloadKind,
+      payloadLength: payload.byteLength,
+      typeTag,
+      version: FRAME_VERSION
+    },
+    options
+  );
   if (!header.ok) {
     return header;
   }

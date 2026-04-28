@@ -1,3 +1,5 @@
+import type { RawScalarType, RawScalarValue } from "@fluxbin/core";
+
 /**
  * devtools 公共类型。
  *
@@ -5,9 +7,16 @@
  * 它属于开发工具层，不承载运行时协议语义。
  */
 export type InspectedFrame = {
-  decodedPayload?: Record<string, unknown>;
+  decodedPayload?: unknown;
+  flags?: number;
+  headerChecksum?: number;
   payloadByteLength: number;
+  payloadKind: "invalid" | "raw" | "typed";
+  payloadChecksum?: number;
+  protocolVersion?: number;
+  rawType?: RawScalarType;
+  rawValue?: RawScalarValue;
   registeredName?: string;
   registeredTypeId?: number;
-  typeId: number;
+  typeTag: number;
 };

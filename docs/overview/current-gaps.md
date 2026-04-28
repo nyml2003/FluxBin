@@ -30,18 +30,19 @@
 - 当前代码里还有较多可选链、nullish coalescing、可选属性
 - 与“尽量不用这些语法”的最终工程风格不一致
 
-### P1: `env-*` 包已起步，但边界层还没补全
+### P1: `env-*` 包已起步，但当前只覆盖 browser / node
 
 - `env-browser`
 - `env-node`
 
 已经落包。
 
-仍欠缺：
+当前明确不进入本轮范围：
 
 - `env-cloudflare`
 - `env-bun`
-- 更完整的边界适配面
+
+仍值得继续补的，是 browser / node 侧更完整的边界适配面。
 
 ### P1: `env-*` 边界层已起步，但还需要补完整
 
@@ -56,6 +57,37 @@
 - subscription
 - retry policy
 - middleware / interceptors
+
+### P1: `typed + raw + envelope + log replay` 第一批已经落地，但环境侧持久化还没补完
+
+- `typed`：`typeId + shape + payload`
+- `raw`：顶层基础值，不走 registry
+- 当前已支持的 raw 顶层类型：
+  - `u8`
+  - `i8`
+  - `u16`
+  - `i16`
+  - `u32`
+  - `i32`
+  - `bool`
+  - `utf8-string`
+
+目前已经有：
+
+- append-friendly frame log 语义
+- stream buffer
+- resync replay
+- truncated tail recovery
+- typed `tuple`
+- typed `objectArray`
+- typed `scalarArray`
+- raw top-level `scalar-array`
+
+接下来更高优先级的缺口变成：
+
+- `env-node` 侧真实文件适配
+- 基于持久化 offset 的增量 replay
+- 更强的坏帧诊断信息
 
 ### P2: `devtools` 仍是第一版
 
@@ -72,12 +104,12 @@
 
 ## 4. 推荐收尾顺序
 
-1. 先统一文档边界原则
-2. 再补齐 `env-*` 边界层和示例注入路径
-3. 最后做语法和单文件 coverage 硬化
+1. 先补环境侧文件适配和持久化 offset 语义
+2. 再继续收紧公开类型面
+3. 最后补 client / devtools 的更完整能力
 
 ## 5. 一句话判断
 
 FluxBin 现在不是“还缺大框架”，而是进入了：
 
-“边界收口 + 工程纪律硬化 + 最后几块实现补全”阶段。
+“协议外层和回放语义已成型，接下来是环境持久化适配、类型面收紧和产品能力扩展”阶段。

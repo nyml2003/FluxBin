@@ -4,17 +4,17 @@
  * 这个文件负责根据 descriptor + payload 生成一组可复用夹具：
  * payload bytes、frame bytes，以及 inspect 结果。它属于工具层，用来辅助测试和示例。
  */
-import { encodeFrame, encodePayload, type Registry, type Shape } from "@fluxbin/core";
+import { encodeFrame, encodePayload, type Registry, type TypedRootNode } from "@fluxbin/core";
 import { inspectFrame } from "../inspect/frame-inspector.js";
 
 type FixtureDescriptor<TPayload> = {
   name?: string;
   payload: TPayload;
-  shape: Shape;
+  shape: TypedRootNode;
   typeId: number;
 };
 
-export function createFixture<TPayload extends Record<string, unknown>>(
+export function createFixture<TPayload>(
   descriptor: FixtureDescriptor<TPayload>,
   registry: Registry
 ) {
@@ -29,7 +29,7 @@ export function createFixture<TPayload extends Record<string, unknown>>(
     throw new Error("无法为 fixture 注册 descriptor。");
   }
 
-  const payloadBytes = encodePayload(registered.compiledShape, descriptor.payload, registry.options);
+  const payloadBytes = encodePayload(registered.compiledNode, descriptor.payload, registry.options);
   if (!payloadBytes.ok) {
     throw new Error("fixture payload 编码失败。");
   }

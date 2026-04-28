@@ -5,15 +5,11 @@ import { decodePayload } from "../../src/reader/decode-payload.js";
 import { createRegistry } from "../../src/registry/create-registry.js";
 import { encodePayload } from "../../src/writer/encode-payload.js";
 
-describe("Milestone A roundtrip", () => {
-  it("roundtrips a nested shape with multibyte strings", () => {
+describe("tuple roundtrip", () => {
+  it("roundtrips a typed tuple root through registry and frame", () => {
     const registry = createRegistry();
-    const registered = registry.register(1001, {
-      id: "u32",
-      profile: {
-        age: "u8",
-        city: "utf8-string"
-      }
+    const registered = registry.register(2001, {
+      tuple: ["u32", "utf8-string", { active: "bool" }]
     });
 
     expect(registered.ok).toBe(true);
@@ -21,29 +17,19 @@ describe("Milestone A roundtrip", () => {
       return;
     }
 
-    const payload = encodePayload(
-      registered.value.compiledNode,
-      {
-        id: 77,
-        profile: {
-          age: 24,
-          city: "上海"
-        }
-      },
-      registry.options
-    );
+    const payload = encodePayload(registered.value.compiledNode, [7, "flux", { active: true }], registry.options);
     expect(payload.ok).toBe(true);
     if (!payload.ok) {
       return;
     }
 
-    const encodedFrame = encodeFrame(registered.value.typeId, payload.value, registry.options);
-    expect(encodedFrame.ok).toBe(true);
-    if (!encodedFrame.ok) {
+    const frame = encodeFrame(registered.value.typeId, payload.value, registry.options);
+    expect(frame.ok).toBe(true);
+    if (!frame.ok) {
       return;
     }
 
-    const decodedFrame = decodeFrame(encodedFrame.value, registry.options);
+    const decodedFrame = decodeFrame(frame.value, registry.options);
     expect(decodedFrame.ok).toBe(true);
     if (!decodedFrame.ok) {
       return;
@@ -59,12 +45,6 @@ describe("Milestone A roundtrip", () => {
       return;
     }
 
-    expect(decodedPayload.value.value).toEqual({
-      id: 77,
-      profile: {
-        age: 24,
-        city: "上海"
-      }
-    });
+    expect(decodedPayload.value.value).toEqual([7, "flux", { active: true }]);
   });
 });

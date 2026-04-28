@@ -12,7 +12,10 @@ describe("createRegistry", () => {
     }
 
     expect(registry.has(1001)).toBe(true);
-    expect(result.value.compiledShape.fields).toHaveLength(2);
+    expect(result.value.compiledNode.kind).toBe("shape");
+    if (result.value.compiledNode.kind === "shape") {
+      expect(result.value.compiledNode.fields).toHaveLength(2);
+    }
   });
 
   it("rejects duplicate type ids", () => {
