@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -16,8 +17,12 @@
     "sourceMap": true,
     "outDir": "dist",
     "rootDir": ".",
+    "paths": {
+      "@fluxbin/core": ["packages/core/src/index.ts"],
+      "@fluxbin/client": ["packages/client/src/index.ts"]
+    },
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts", "bench/**/*.ts", "vitest.config.ts", "tsup.config.ts"],
+  "include": ["packages/**/*.ts", "scripts/**/*.ts", "bench/**/*.ts", "vitest.config.ts"],
   "exclude": ["dist", "node_modules"]
 }

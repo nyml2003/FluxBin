@@ -58,36 +58,44 @@
 
 ### 目录建议
 
+推荐从“单包根目录”演进到“workspace + packages”结构：
+
 ```text
 docs/
   spec/
   engineering/
-src/
-  shape/
-  registry/
-  frame/
-  stream/
-  reader/
-  writer/
-  scalar/
-  errors/
-  limits/
-  types/
-test/
-  unit/
-  integration/
-  environment/
-  fixtures/
+  world/
+packages/
+  core/
+    src/
+    test/
+  client/
+    src/
+    test/
+  transport-websocket/
+    src/
+    test/
+  transport-fetch/
+    src/
+    test/
+  devtools/
+    src/
+  bench/
+    src/
 bench/
 scripts/
 ```
 
 说明：
 
-- `src/` 放协议运行时代码
-- `test/` 放测试
-- `bench/` 放性能基准
+- `packages/core` 放协议运行时代码
+- `packages/client` 放端到端 SDK
+- `packages/transport-*` 放 transport adapter
+- `packages/devtools` 放调试与开发体验工具
+- `packages/bench` 放性能基准
 - `scripts/` 放代码生成、检查、文档验证脚本
+
+当前仓库已经进入 `packages/*` 结构，root 负责 workspace orchestration，运行时代码以包为单位承载。
 
 ## TypeScript
 
@@ -97,9 +105,9 @@ scripts/
 
 适用范围：
 
-- `src/*`
-- `test/*`
-- `bench/*`
+- `packages/*/src/*`
+- `packages/*/test/*`
+- `packages/*/bench/*`
 - `scripts/*`
 
 ### 配置原则
@@ -240,9 +248,9 @@ lint 不只是格式工具。
 
 1. 用示例 dev server 作为主库构建器
 2. 用 `tsx` 代替正式构建流程
-3. 让 demo 或 example 反向决定 `src/` 结构
+3. 让 demo 或 example 反向决定 `packages/*` 结构
 4. 混用多套测试框架
-5. 在最底层协议模块里引入宿主平台专属依赖
+5. 在 `packages/core` 里引入 transport 或宿主平台专属依赖
 
 ## 实施顺序
 

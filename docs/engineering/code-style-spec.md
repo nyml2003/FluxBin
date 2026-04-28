@@ -28,7 +28,7 @@
 
 ## 一、分层边界规范
 
-### 1. `src/shape`
+### 1. `packages/core/src/shape`
 
 允许：
 
@@ -42,7 +42,7 @@
 - 直接操作流缓冲
 - 偷带 registry 状态
 
-### 2. `src/registry`
+### 2. `packages/core/src/registry`
 
 允许：
 
@@ -57,7 +57,7 @@
 - 直接承担 payload 字段读取
 - 偷带 writer 逻辑
 
-### 3. `src/frame`
+### 3. `packages/core/src/frame`
 
 允许：
 
@@ -71,7 +71,7 @@
 - 解析 payload 内字段
 - 感知业务 shape 语义
 
-### 4. `src/stream`
+### 4. `packages/core/src/stream`
 
 允许：
 
@@ -85,7 +85,7 @@
 - 解释 payload 字段语义
 - 替 registry 做 `typeId` 治理
 
-### 5. `src/reader`
+### 5. `packages/core/src/reader`
 
 允许：
 
@@ -100,7 +100,7 @@
 - 用属性访问触发解析
 - 直接管理 frame 生命周期
 
-### 6. `src/writer`
+### 6. `packages/core/src/writer`
 
 允许：
 
@@ -114,7 +114,7 @@
 - 自动跳过协议字段
 - 动态重排字段
 
-### 7. `src/scalar`
+### 7. `packages/core/src/scalar`
 
 允许：
 
@@ -126,7 +126,7 @@
 
 - 掺杂 registry、shape、stream 逻辑
 
-### 8. `src/errors`
+### 8. `packages/core/src/errors`
 
 允许：
 
@@ -134,7 +134,7 @@
 - `Result` 类型
 - `need-more-data` / `protocol-error` 结果建模
 
-### 9. `src/limits`
+### 9. `packages/core/src/limits`
 
 允许：
 

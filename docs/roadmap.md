@@ -320,3 +320,52 @@
 结果：
 
 - 可以引入扩展类型并把实现打磨到可发布状态
+
+## World Phases
+
+除了协议能力阶段，FluxBin 还需要一条包世界迁移路线。
+
+### W1: `packages/core` Migration
+
+目标：
+
+- 把当前 root `src/*` 和 `test/*` 迁到 `packages/core`
+- root 只保留 workspace orchestration
+
+验收：
+
+- `packages/core` 单独可 build / test / typecheck
+- root workspace 聚合命令可运行
+
+### W2: `packages/client` Skeleton
+
+目标：
+
+- 建立 `client` 包骨架
+- 冻结 `client -> core -> transport` 依赖方向
+
+验收：
+
+- `client` API draft 落文档
+- `client` 不重实现 shape / registry / frame
+
+### W3: First Transport Adapter
+
+目标：
+
+- 实现第一个 transport 包，优先 `transport-websocket`
+
+验收：
+
+- transport 可以发送和接收 framed bytes
+- transport 不污染 `core`
+
+### W4: Devtools And Bench
+
+目标：
+
+- 建立 `devtools` / `bench` 世界边界
+
+验收：
+
+- inspect / fixtures / benchmark 不再散落在 root

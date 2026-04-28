@@ -4,14 +4,8 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.0.0",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "build": "tsup",
+    "build": "pnpm --filter @fluxbin/core build && pnpm --filter @fluxbin/client build && pnpm --filter @fluxbin/transport-websocket build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
