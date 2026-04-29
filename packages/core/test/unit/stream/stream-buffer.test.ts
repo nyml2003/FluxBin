@@ -136,4 +136,37 @@ describe("stream buffer", () => {
     buffer.clear();
     expect(buffer.getBufferedByteLength()).toBe(0);
   });
+
+  it("keeps buffer state stable for zero discard, empty append, partial reads, and strict failures", () => {
+    const buffer = createStreamBuffer(DEFAULT_OPTIONS);
+
+    const emptyAppend = buffer.append(new Uint8Array(0));
+    expect(emptyAppend.ok).toBe(true);
+    expect(buffer.getBufferedByteLength()).toBe(0);
+
+    const zeroDiscard = buffer.discard(0);
+    expect(zeroDiscard.ok).toBe(true);
+    expect(buffer.getBufferedByteLength()).toBe(0);
+
+    const frame = encodeFrame(9, new Uint8Array([1, 2, 3]), DEFAULT_OPTIONS);
+    expect(frame.ok).toBe(true);
+    if (!frame.ok) {
+      return;
+    }
+
+    expect(buffer.append(frame.value.slice(0, 10)).ok).toBe(true);
+    const partialRead = buffer.readAvailableFrames();
+    expect(partialRead).toEqual({ ok: true, value: [], error: null });
+    expect(buffer.getBufferedByteLength()).toBe(10);
+
+    const corrupted = new Uint8Array(frame.value);
+    const corruptedView = new DataView(corrupted.buffer, corrupted.byteOffset, corrupted.byteLength);
+    corruptedView.setUint8(24, corruptedView.getUint8(24) ^ 1);
+
+    buffer.clear();
+    expect(buffer.append(corrupted).ok).toBe(true);
+    const strictFailure = buffer.readFrame();
+    expect(strictFailure.ok).toBe(false);
+    expect(buffer.getBufferedByteLength()).toBe(corrupted.byteLength);
+  });
 });

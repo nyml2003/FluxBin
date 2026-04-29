@@ -138,7 +138,7 @@ export function decodeFrameHeader(
 
   const payloadKind = decodePayloadKind(payloadKindResult.value.value);
   if (payloadKind === null) {
-    return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Unknown payloadKind code.", resolvedOffset));
+    return err(protocolError(ERROR_CODES.UNKNOWN_PAYLOAD_KIND, "Unknown payloadKind code.", resolvedOffset + 5));
   }
 
   const flagsResult = readU16(view, resolvedOffset + 6, options.endian);

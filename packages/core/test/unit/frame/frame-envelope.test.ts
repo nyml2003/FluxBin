@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { writeU32 } from "../../../src/scalar/write-scalars.js";
+import { computeFrameChecksum } from "../../../src/frame/frame-checksum.js";
 import { decodeFrame } from "../../../src/frame/decode-frame.js";
 import { encodeFrame } from "../../../src/frame/encode-frame.js";
 import { decodeFrameWithResync, findNextFrameMagicOffset } from "../../../src/frame/frame-sync.js";
@@ -69,6 +71,23 @@ describe("frame envelope", () => {
     expect(invalidPayloadChecksumResult.ok).toBe(false);
     if (!invalidPayloadChecksumResult.ok) {
       expect(invalidPayloadChecksumResult.error.code).toBe("PAYLOAD_CHECKSUM_MISMATCH");
+    }
+
+    const invalidPayloadKind = new Uint8Array(encoded.value);
+    const invalidPayloadKindView = new DataView(
+      invalidPayloadKind.buffer,
+      invalidPayloadKind.byteOffset,
+      invalidPayloadKind.byteLength
+    );
+    invalidPayloadKindView.setUint8(5, 9);
+    const headerChecksum = computeFrameChecksum(invalidPayloadKind.subarray(0, 20));
+    const rewriteHeaderChecksum = writeU32(invalidPayloadKindView, 20, headerChecksum, DEFAULT_OPTIONS.endian);
+    expect(rewriteHeaderChecksum.ok).toBe(true);
+
+    const invalidPayloadKindResult = decodeFrame(invalidPayloadKind, DEFAULT_OPTIONS);
+    expect(invalidPayloadKindResult.ok).toBe(false);
+    if (!invalidPayloadKindResult.ok) {
+      expect(invalidPayloadKindResult.error.code).toBe("UNKNOWN_PAYLOAD_KIND");
     }
   });
 

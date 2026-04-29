@@ -180,6 +180,9 @@ describe("lazy payload reader", () => {
     }
     const missingField = objectReader.get("missing");
     expect(missingField.ok).toBe(false);
+    if (!missingField.ok) {
+      expect(missingField.error.code).toBe("UNKNOWN_FIELD");
+    }
 
     const ids = objectReader.get("ids");
     expect(ids.ok).toBe(true);
@@ -210,6 +213,9 @@ describe("lazy payload reader", () => {
     }
     const malformedIds = malformedArrayReader.get("ids");
     expect(malformedIds.ok).toBe(false);
+    if (!malformedIds.ok) {
+      expect(malformedIds.error.code).toBe("ARRAY_LENGTH_EXCEEDED");
+    }
 
     const tupleCompiled = compileShape({
       tuple: ["u32", "bool"]

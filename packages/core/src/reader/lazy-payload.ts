@@ -230,8 +230,8 @@ function readArrayLengthUnsafe(context: ReaderContext, offset: number): CountRea
   if (result.value.value > context.options.limits.maxArrayLength) {
     fail(
       protocolError(
-        ERROR_CODES.INVALID_FIELD_VALUE,
-        `Array length ${String(result.value.value)} exceeds maxArrayLength.`,
+        ERROR_CODES.ARRAY_LENGTH_EXCEEDED,
+        `Array length ${String(result.value.value)} exceeds maxArrayLength ${String(context.options.limits.maxArrayLength)}.`,
         offset
       )
     );
@@ -423,7 +423,7 @@ function shapeResolveFieldIndexUnsafe(reader: ShapeInternalReader, targetIndex: 
 function shapeGetUnsafe(reader: ShapeInternalReader, key: string): LazyResolvedValue {
   const fieldIndex = reader._node.fieldIndexByKey[key];
   if (fieldIndex === undefined) {
-    fail(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, `Unknown shape field "${key}".`, null));
+    fail(protocolError(ERROR_CODES.UNKNOWN_FIELD, `Unknown shape field "${key}".`, null));
   }
 
   const cachedValue = reader._fieldValues.get(fieldIndex);

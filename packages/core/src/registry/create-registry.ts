@@ -16,7 +16,7 @@ export function createRegistry(options?: RegistryOptionsInput): Registry {
 
   function register<const S extends TypedRootNode>(typeId: number, shape: S, meta?: RegistryMeta) {
     if (!Number.isInteger(typeId) || typeId < 0) {
-      return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "typeId must be a non-negative integer.", null));
+      return err(protocolError(ERROR_CODES.INVALID_TYPE_ID, "typeId must be a non-negative integer.", null));
     }
 
     if (entries.has(typeId)) {

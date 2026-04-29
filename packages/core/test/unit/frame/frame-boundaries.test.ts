@@ -32,6 +32,9 @@ describe("frame boundaries", () => {
 
     const invalidTypeId = encodeFrame(-1, new Uint8Array([1]), createOptions());
     expect(invalidTypeId.ok).toBe(false);
+    if (!invalidTypeId.ok) {
+      expect(invalidTypeId.error.code).toBe("INVALID_TYPE_ID");
+    }
   });
 
   it("rejects oversized frame headers and incomplete payloads", () => {
@@ -110,5 +113,8 @@ describe("frame boundaries", () => {
     const truncatedFrame = fullFrame.value.slice(0, fullFrame.value.byteLength - 1);
     const decodeResult = decodeFrame(truncatedFrame, createOptions());
     expect(decodeResult.ok).toBe(false);
+    if (!decodeResult.ok) {
+      expect(decodeResult.error.kind).toBe("need-more-data");
+    }
   });
 });

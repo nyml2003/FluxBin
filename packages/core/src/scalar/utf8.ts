@@ -24,8 +24,8 @@ export function encodeUtf8String(
   if (encoded.byteLength > resolvedLimits.maxStringBytes) {
     return err(
       protocolError(
-        ERROR_CODES.INVALID_FIELD_VALUE,
-        `String byte length ${String(encoded.byteLength)} exceeds maxStringBytes.`,
+        ERROR_CODES.STRING_LENGTH_EXCEEDED,
+        `String byte length ${String(encoded.byteLength)} exceeds maxStringBytes ${String(resolvedLimits.maxStringBytes)}.`,
         null
       )
     );
@@ -61,8 +61,8 @@ export function decodeUtf8String(
   if (byteLength > resolvedLimits.maxStringBytes) {
     return err(
       protocolError(
-        ERROR_CODES.INVALID_FIELD_VALUE,
-        `String byte length ${String(byteLength)} exceeds maxStringBytes.`,
+        ERROR_CODES.STRING_LENGTH_EXCEEDED,
+        `String byte length ${String(byteLength)} exceeds maxStringBytes ${String(resolvedLimits.maxStringBytes)}.`,
         offset
       )
     );

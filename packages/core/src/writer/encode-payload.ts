@@ -84,8 +84,8 @@ function validateArrayCount(count: number, options: FluxBinOptions): Result<void
   if (count > options.limits.maxArrayLength) {
     return err(
       protocolError(
-        ERROR_CODES.INVALID_FIELD_VALUE,
-        `Array count ${String(count)} exceeds maxArrayLength.`,
+        ERROR_CODES.ARRAY_LENGTH_EXCEEDED,
+        `Array count ${String(count)} exceeds maxArrayLength ${String(options.limits.maxArrayLength)}.`,
         null
       )
     );
@@ -128,8 +128,8 @@ function writePrimitiveNode(
     if (encoded.byteLength > writer.options.limits.maxStringBytes) {
       return err(
         protocolError(
-          ERROR_CODES.INVALID_FIELD_VALUE,
-          `String byte length ${String(encoded.byteLength)} exceeds maxStringBytes.`,
+          ERROR_CODES.STRING_LENGTH_EXCEEDED,
+          `String byte length ${String(encoded.byteLength)} exceeds maxStringBytes ${String(writer.options.limits.maxStringBytes)}.`,
           null
         )
       );
@@ -238,26 +238,6 @@ function writePrimitiveNode(
   }
 }
 
-function createCompiledPrimitiveNode(kind: CompiledPrimitiveNode["kind"]): CompiledPrimitiveNode {
-  switch (kind) {
-    case "bool":
-      return { kind, fixedWidth: true, byteWidth: 1, staticByteLength: 1, depth: 0 };
-    case "i8":
-    case "u8":
-      return { kind, fixedWidth: true, byteWidth: 1, staticByteLength: 1, depth: 0 };
-    case "i16":
-    case "u16":
-      return { kind, fixedWidth: true, byteWidth: 2, staticByteLength: 2, depth: 0 };
-    case "i32":
-    case "u32":
-      return { kind, fixedWidth: true, byteWidth: 4, staticByteLength: 4, depth: 0 };
-    case "utf8-string":
-      return { kind, fixedWidth: false, byteWidth: null, staticByteLength: null, depth: 0 };
-  }
-
-  return { kind: "u8", fixedWidth: true, byteWidth: 1, staticByteLength: 1, depth: 0 };
-}
-
 function writeNode(writer: GrowableWriter, node: CompiledNode, input: unknown): Result<void, FluxBinError> {
   if (
     node.kind === "bool" ||
@@ -280,7 +260,7 @@ function writeNode(writer: GrowableWriter, node: CompiledNode, input: unknown): 
     const objectInput = input as Record<string, unknown>;
     for (const field of node.fields) {
       if (!(field.key in objectInput)) {
-        return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, `Field "${field.key}" is required.`, null));
+        return err(protocolError(ERROR_CODES.REQUIRED_FIELD_MISSING, `Field "${field.key}" is required.`, null));
       }
 
       const encodedField = writeField(writer, field, objectInput[field.key]);
@@ -347,9 +327,8 @@ function writeNode(writer: GrowableWriter, node: CompiledNode, input: unknown): 
       return countResult;
     }
 
-    const primitiveNode = createCompiledPrimitiveNode(node.item);
     for (const item of input) {
-      const encodedItem = writePrimitiveNode(writer, primitiveNode, item);
+      const encodedItem = writePrimitiveNode(writer, node.itemNode, item);
       if (!encodedItem.ok) {
         return encodedItem;
       }

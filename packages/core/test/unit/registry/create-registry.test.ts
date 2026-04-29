@@ -29,6 +29,16 @@ describe("createRegistry", () => {
     }
   });
 
+  it("rejects invalid type ids before compilation", () => {
+    const registry = createRegistry();
+
+    const negativeTypeId = registry.register(-1, { id: "u32" });
+    expect(negativeTypeId.ok).toBe(false);
+    if (!negativeTypeId.ok) {
+      expect(negativeTypeId.error.code).toBe("INVALID_TYPE_ID");
+    }
+  });
+
   it("isolates options across registry instances", () => {
     const first = createRegistry();
     const second = createRegistry();

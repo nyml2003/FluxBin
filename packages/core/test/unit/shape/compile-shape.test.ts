@@ -102,15 +102,27 @@ describe("compileShape", () => {
   it("rejects invalid keys, invalid nested nodes, and excessive depth", () => {
     const emptyKey = validateShape({ "": "u8" });
     expect(emptyKey.ok).toBe(false);
+    if (!emptyKey.ok) {
+      expect(emptyKey.error.code).toBe("INVALID_SHAPE");
+    }
 
     const invalidNested = validateShape({ child: 1 as never });
     expect(invalidNested.ok).toBe(false);
+    if (!invalidNested.ok) {
+      expect(invalidNested.error.code).toBe("INVALID_NODE_TYPE");
+    }
 
     const emptyTuple = validateShape({ tuple: [] });
     expect(emptyTuple.ok).toBe(false);
+    if (!emptyTuple.ok) {
+      expect(emptyTuple.error.code).toBe("INVALID_SHAPE");
+    }
 
     const invalidScalarArray = validateShape({ values: { scalarArray: { id: "u32" } as never } });
     expect(invalidScalarArray.ok).toBe(false);
+    if (!invalidScalarArray.ok) {
+      expect(invalidScalarArray.error.code).toBe("INVALID_NODE_TYPE");
+    }
 
     const options = createOptions({
       limits: {
@@ -126,5 +138,8 @@ describe("compileShape", () => {
       options.limits
     );
     expect(excessiveDepth.ok).toBe(false);
+    if (!excessiveDepth.ok) {
+      expect(excessiveDepth.error.code).toBe("DEPTH_LIMIT_EXCEEDED");
+    }
   });
 });

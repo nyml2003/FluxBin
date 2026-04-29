@@ -17,6 +17,9 @@ describe("payload encode/decode errors", () => {
 
     const missingField = encodePayload(compiled.value, { active: true }, createOptions());
     expect(missingField.ok).toBe(false);
+    if (!missingField.ok) {
+      expect(missingField.error.code).toBe("REQUIRED_FIELD_MISSING");
+    }
 
     const invalidField = encodePayload(compiled.value, { active: "yes", name: "flux" }, createOptions());
     expect(invalidField.ok).toBe(false);
@@ -39,6 +42,9 @@ describe("payload encode/decode errors", () => {
     const payload = new Uint8Array([7, 99]);
     const decoded = decodePayload(compiled.value, payload, createOptions());
     expect(decoded.ok).toBe(false);
+    if (!decoded.ok) {
+      expect(decoded.error.code).toBe("LENGTH_MISMATCH");
+    }
   });
 
   it("encodes all supported scalar branches successfully", () => {
@@ -252,6 +258,9 @@ describe("payload encode/decode errors", () => {
     });
     const oversizedArray = encodePayload(arrayCompiled.value, { ids: [1, 2] }, limitedOptions);
     expect(oversizedArray.ok).toBe(false);
+    if (!oversizedArray.ok) {
+      expect(oversizedArray.error.code).toBe("ARRAY_LENGTH_EXCEEDED");
+    }
   });
 
   it("grows internal writer capacity for large arrays and enforces payload/string limits", () => {
@@ -287,6 +296,9 @@ describe("payload encode/decode errors", () => {
       })
     );
     expect(payloadTooLarge.ok).toBe(false);
+    if (!payloadTooLarge.ok) {
+      expect(payloadTooLarge.error.code).toBe("PAYLOAD_TOO_LARGE");
+    }
 
     const stringTooLarge = encodePayload(
       largeArrayCompiled.value,
@@ -301,5 +313,48 @@ describe("payload encode/decode errors", () => {
       })
     );
     expect(stringTooLarge.ok).toBe(false);
+    if (!stringTooLarge.ok) {
+      expect(stringTooLarge.error.code).toBe("STRING_LENGTH_EXCEEDED");
+    }
+  });
+
+  it("uses the same limit/error semantics across eager typed decode paths", () => {
+    const compiled = compileShape({
+      ids: { scalarArray: "u32" },
+      name: "utf8-string"
+    });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) {
+      return;
+    }
+
+    const arrayTooLarge = decodePayload(
+      compiled.value,
+      new Uint8Array([2, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0x61]),
+      createOptions({
+        limits: {
+          maxArrayLength: 1,
+          maxStringBytes: 8
+        }
+      })
+    );
+    expect(arrayTooLarge.ok).toBe(false);
+    if (!arrayTooLarge.ok) {
+      expect(arrayTooLarge.error.code).toBe("ARRAY_LENGTH_EXCEEDED");
+    }
+
+    const stringTooLarge = decodePayload(
+      compiled.value,
+      new Uint8Array([0, 0, 0, 0, 2, 0, 0, 0, 0x61, 0x62]),
+      createOptions({
+        limits: {
+          maxStringBytes: 1
+        }
+      })
+    );
+    expect(stringTooLarge.ok).toBe(false);
+    if (!stringTooLarge.ok) {
+      expect(stringTooLarge.error.code).toBe("STRING_LENGTH_EXCEEDED");
+    }
   });
 });

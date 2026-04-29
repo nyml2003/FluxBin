@@ -30,8 +30,8 @@ function encodeArrayCount(count: number, options: FluxBinOptions): Result<Uint8A
   if (count > options.limits.maxArrayLength) {
     return err(
       protocolError(
-        ERROR_CODES.INVALID_FIELD_VALUE,
-        `Raw array count ${String(count)} exceeds maxArrayLength.`,
+        ERROR_CODES.ARRAY_LENGTH_EXCEEDED,
+        `Raw array count ${String(count)} exceeds maxArrayLength ${String(options.limits.maxArrayLength)}.`,
         null
       )
     );
@@ -158,65 +158,59 @@ export function decodeRawValue(
   options: FluxBinOptions
 ): Result<RawScalarValue, FluxBinError> {
   const view = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
+  let decoded: Result<{ nextOffset: number; value: RawScalarValue }, FluxBinError>;
 
   switch (rawType) {
     case "bool": {
-      const result = readBool(view, 0);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = readBool(view, 0);
+      break;
     }
     case "i8": {
-      const result = readI8(view, 0);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = readI8(view, 0);
+      break;
     }
     case "u8": {
-      const result = readU8(view, 0);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = readU8(view, 0);
+      break;
     }
     case "i16": {
-      const result = readI16(view, 0, options.endian);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = readI16(view, 0, options.endian);
+      break;
     }
     case "u16": {
-      const result = readU16(view, 0, options.endian);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = readU16(view, 0, options.endian);
+      break;
     }
     case "i32": {
-      const result = readI32(view, 0, options.endian);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = readI32(view, 0, options.endian);
+      break;
     }
     case "u32": {
-      const result = readU32(view, 0, options.endian);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = readU32(view, 0, options.endian);
+      break;
     }
     case "utf8-string": {
-      const result = decodeUtf8String(view, 0, options.endian, options.limits);
-      if (!result.ok) {
-        return result;
-      }
-      return ok(result.value.value);
+      decoded = decodeUtf8String(view, 0, options.endian, options.limits);
+      break;
     }
   }
+
+  if (!decoded.ok) {
+    return decoded;
+  }
+
+  if (decoded.value.nextOffset !== payload.byteLength) {
+    return err(
+      protocolError(
+        ERROR_CODES.LENGTH_MISMATCH,
+        "Decoded raw value did not consume the expected number of bytes.",
+        decoded.value.nextOffset,
+        { actualBytes: payload.byteLength, consumedBytes: decoded.value.nextOffset }
+      )
+    );
+  }
+
+  return ok(decoded.value.value);
 }
 
 export function encodeRawArrayValue<TRawType extends RawScalarType>(
@@ -259,8 +253,8 @@ export function decodeRawArrayValue(
   if (countResult.value.value > options.limits.maxArrayLength) {
     return err(
       protocolError(
-        ERROR_CODES.INVALID_FIELD_VALUE,
-        `Raw array count ${String(countResult.value.value)} exceeds maxArrayLength.`,
+        ERROR_CODES.ARRAY_LENGTH_EXCEEDED,
+        `Raw array count ${String(countResult.value.value)} exceeds maxArrayLength ${String(options.limits.maxArrayLength)}.`,
         0
       )
     );
@@ -268,27 +262,41 @@ export function decodeRawArrayValue(
 
   const value: RawScalarValue[] = [];
   let nextOffset = countResult.value.nextOffset;
+  const itemView = new DataView(payload.buffer, payload.byteOffset, payload.byteLength);
   for (let index = 0; index < countResult.value.value; index += 1) {
-    const decodedItem = decodeRawValue(
-      rawType,
-      payload.subarray(nextOffset),
-      options
-    );
+    let decodedItem: Result<{ nextOffset: number; value: RawScalarValue }, FluxBinError>;
+    switch (rawType) {
+      case "bool":
+        decodedItem = readBool(itemView, nextOffset);
+        break;
+      case "i8":
+        decodedItem = readI8(itemView, nextOffset);
+        break;
+      case "u8":
+        decodedItem = readU8(itemView, nextOffset);
+        break;
+      case "i16":
+        decodedItem = readI16(itemView, nextOffset, options.endian);
+        break;
+      case "u16":
+        decodedItem = readU16(itemView, nextOffset, options.endian);
+        break;
+      case "i32":
+        decodedItem = readI32(itemView, nextOffset, options.endian);
+        break;
+      case "u32":
+        decodedItem = readU32(itemView, nextOffset, options.endian);
+        break;
+      case "utf8-string":
+        decodedItem = decodeUtf8String(itemView, nextOffset, options.endian, options.limits);
+        break;
+    }
     if (!decodedItem.ok) {
       return decodedItem;
     }
 
-    value.push(decodedItem.value);
-
-    if (rawType === "utf8-string") {
-      const nextString = decodeUtf8String(view, nextOffset, options.endian, options.limits);
-      if (!nextString.ok) {
-        return nextString;
-      }
-      nextOffset = nextString.value.nextOffset;
-    } else {
-      nextOffset += rawType === "u16" || rawType === "i16" ? 2 : rawType === "u32" || rawType === "i32" ? 4 : 1;
-    }
+    value.push(decodedItem.value.value);
+    nextOffset = decodedItem.value.nextOffset;
   }
 
   if (nextOffset !== payload.byteLength) {

@@ -58,6 +58,9 @@ describe("raw codec", () => {
     });
     const oversizedString = encodeRawValue("utf8-string", "ab", limitedOptions);
     expect(oversizedString.ok).toBe(false);
+    if (!oversizedString.ok) {
+      expect(oversizedString.error.code).toBe("STRING_LENGTH_EXCEEDED");
+    }
   });
 
   it("rejects truncated raw payloads during decode", () => {
@@ -117,6 +120,9 @@ describe("raw codec", () => {
     });
     const oversizedArray = encodeRawArrayValue("u32", [1, 2], limitedOptions);
     expect(oversizedArray.ok).toBe(false);
+    if (!oversizedArray.ok) {
+      expect(oversizedArray.error.code).toBe("ARRAY_LENGTH_EXCEEDED");
+    }
 
     const truncatedCount = decodeRawArrayValue("u32", new Uint8Array([1, 0]), DEFAULT_OPTIONS);
     expect(truncatedCount.ok).toBe(false);
@@ -129,5 +135,11 @@ describe("raw codec", () => {
 
     const truncatedTail = decodeRawArrayValue("bool", encoded.value.slice(0, encoded.value.byteLength - 1), DEFAULT_OPTIONS);
     expect(truncatedTail.ok).toBe(false);
+
+    const trailingGarbageScalar = decodeRawValue("u16", new Uint8Array([1, 0, 9]), DEFAULT_OPTIONS);
+    expect(trailingGarbageScalar.ok).toBe(false);
+    if (!trailingGarbageScalar.ok) {
+      expect(trailingGarbageScalar.error.code).toBe("LENGTH_MISMATCH");
+    }
   });
 });

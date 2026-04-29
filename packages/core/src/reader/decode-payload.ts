@@ -90,8 +90,8 @@ function decodeNode(
       if (countResult.value.value > options.limits.maxArrayLength) {
         return err(
           protocolError(
-            ERROR_CODES.INVALID_FIELD_VALUE,
-            `Object array length ${String(countResult.value.value)} exceeds maxArrayLength.`,
+            ERROR_CODES.ARRAY_LENGTH_EXCEEDED,
+            `Object array length ${String(countResult.value.value)} exceeds maxArrayLength ${String(options.limits.maxArrayLength)}.`,
             offset
           )
         );
@@ -120,8 +120,8 @@ function decodeNode(
       if (countResult.value.value > options.limits.maxArrayLength) {
         return err(
           protocolError(
-            ERROR_CODES.INVALID_FIELD_VALUE,
-            `Scalar array length ${String(countResult.value.value)} exceeds maxArrayLength.`,
+            ERROR_CODES.ARRAY_LENGTH_EXCEEDED,
+            `Scalar array length ${String(countResult.value.value)} exceeds maxArrayLength ${String(options.limits.maxArrayLength)}.`,
             offset
           )
         );
@@ -131,18 +131,7 @@ function decodeNode(
       let nextOffset = countResult.value.nextOffset;
 
       for (let index = 0; index < countResult.value.value; index += 1) {
-        const decodedItem = decodePrimitiveNode(
-          {
-            kind: node.item,
-            fixedWidth: node.item !== "utf8-string",
-            byteWidth: node.item === "utf8-string" ? null : node.item === "u16" || node.item === "i16" ? 2 : node.item === "u32" || node.item === "i32" ? 4 : 1,
-            staticByteLength: node.item === "utf8-string" ? null : node.item === "u16" || node.item === "i16" ? 2 : node.item === "u32" || node.item === "i32" ? 4 : 1,
-            depth: 0
-          },
-          view,
-          nextOffset,
-          options
-        );
+        const decodedItem = decodePrimitiveNode(node.itemNode, view, nextOffset, options);
         if (!decodedItem.ok) {
           return decodedItem;
         }

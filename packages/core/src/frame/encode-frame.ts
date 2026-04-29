@@ -40,6 +40,10 @@ export function encodeFramedPayloadWithFlags(
   payload: Uint8Array,
   options: FluxBinOptions
 ): Result<Uint8Array, FluxBinError> {
+  if (!Number.isInteger(typeTag) || typeTag < 0 || typeTag > 0xffff_ffff) {
+    return err(protocolError(ERROR_CODES.INVALID_TYPE_ID, "typeTag must be a non-negative 32-bit integer.", null));
+  }
+
   if (payload.byteLength > options.limits.maxPayloadBytes) {
     return err(
       protocolError(
