@@ -71,6 +71,9 @@ FluxBin 的设计中心不是“如何支持更多类型”，而是“如何让
 - typed `objectArray`
 - typed `scalarArray`
 - top-level raw `scalar-array`
+- 导出的 `createLazyPayloadReader`
+  - 可对 typed object / tuple / object-array payload 做按需读取
+  - 可在 shape 内部按需读取 `scalarArray` / `objectArray` 子节点
 
 ## 顶层负载模式
 

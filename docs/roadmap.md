@@ -325,11 +325,19 @@
 
 除了协议能力阶段，FluxBin 还需要一条包世界迁移路线。
 
-### W1: `packages/core` Migration
+状态说明：
+
+- `completed`：仓库中已经落地
+- `partial`：部分落地，但还有结构收尾
+- `in-progress`：方向明确，但还未收口
+
+下面这些 World Phases 应视为迁移记录，不全是“未来才会做”的事项。
+
+### W1: `packages/core` Migration [`completed`]
 
 目标：
 
-- 把当前 root `src/*` 和 `test/*` 迁到 `packages/core`
+- 把历史 root `src/*` 和 `test/*` 迁到 `packages/core`
 - root 只保留 workspace orchestration
 
 验收：
@@ -337,7 +345,7 @@
 - `packages/core` 单独可 build / test / typecheck
 - root workspace 聚合命令可运行
 
-### W2: `packages/client` Skeleton
+### W2: `packages/client` Skeleton [`completed`]
 
 目标：
 
@@ -349,7 +357,7 @@
 - `client` API draft 落文档
 - `client` 不重实现 shape / registry / frame
 
-### W3: First Transport Adapter
+### W3: First Transport Adapter [`completed`]
 
 目标：
 
@@ -360,7 +368,7 @@
 - transport 可以发送和接收 framed bytes
 - transport 不污染 `core`
 
-### W4: Devtools And Bench
+### W4: Devtools And Bench [`partial`]
 
 目标：
 
@@ -368,9 +376,11 @@
 
 验收：
 
-- inspect / fixtures / benchmark 不再散落在 root
+- `devtools` 已独立落包
+- benchmark 当前仍在 root `bench/`
+- 是否迁到 `packages/bench` 仍待单独决定
 
-### W5: `env-*` Boundary Layer
+### W5: `env-*` Boundary Layer [`partial`]
 
 目标：
 
@@ -382,10 +392,11 @@
 
 验收：
 
+- `env-browser` / `env-node` 已落地
 - `transport-*` 不再直接碰环境原生 API
-- 环境差异收敛进 `env-*`
+- `env-cloudflare` / `env-bun` 仍是 future candidate
 
-### W6: Final Hardening
+### W6: Final Hardening [`in-progress`]
 
 目标：
 

@@ -62,6 +62,23 @@ describe("scalar error handling", () => {
     expect(shortI32.ok).toBe(false);
   });
 
+  it("preserves signed boundary values across endian paths", () => {
+    const minI16 = readI16(new DataView(new Uint8Array([0x80, 0x00]).buffer), 0, "big");
+    expect(minI16).toEqual({ ok: true, value: { nextOffset: 2, value: -0x8000 }, error: null });
+
+    const minI32Bytes = new Uint8Array(4);
+    const minI32View = new DataView(minI32Bytes.buffer);
+    const minI32Write = writeI32(minI32View, 0, -0x8000_0000, "big");
+    expect(minI32Write).toEqual({ ok: true, value: 4, error: null });
+    expect(Array.from(minI32Bytes)).toEqual([0x80, 0x00, 0x00, 0x00]);
+
+    const maxI32Bytes = new Uint8Array(4);
+    const maxI32View = new DataView(maxI32Bytes.buffer);
+    const maxI32Write = writeI32(maxI32View, 0, 0x7fff_ffff, "little");
+    expect(maxI32Write).toEqual({ ok: true, value: 4, error: null });
+    expect(Array.from(maxI32Bytes)).toEqual([0xff, 0xff, 0xff, 0x7f]);
+  });
+
   it("exposes the result type guard and preserves bool failure shape", () => {
     const readResult = readBool(new DataView(new Uint8Array([9]).buffer), 0);
     expect(isOk(readResult)).toBe(false);

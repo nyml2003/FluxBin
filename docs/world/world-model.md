@@ -98,10 +98,13 @@ FluxBin 不只是一个“协议实现仓库”，它最终会演化成一个由
 
 边界层只由 `env-*` 包组成。
 
-未来候选：
+当前已落地：
 
 - `packages/env-browser`
 - `packages/env-node`
+
+未来候选：
+
 - `packages/env-cloudflare`
 - `packages/env-bun`
 
@@ -111,21 +114,27 @@ FluxBin 不只是一个“协议实现仓库”，它最终会演化成一个由
 - 接触运行时特有类型
 - 做环境 IO 适配
 
-## 3. 推荐包层次
+## 3. 当前已落地的包层次
 
 ```text
+root/
+  bench/
+
 packages/
   core/
   client/
   transport-websocket/
-  transport-fetch/
   devtools/
   env-browser/
   env-node/
-  env-cloudflare/   # 未来候选，不在当前范围
-  env-bun/          # 未来候选，不在当前范围
-  bench/
 ```
+
+future candidates:
+
+- `packages/transport-fetch`
+- `packages/env-cloudflare`
+- `packages/env-bun`
+- `packages/bench`
 
 ## 4. 为什么不是只拆 `core + client`
 
@@ -141,9 +150,10 @@ packages/
 
 当前建议：
 
-- 第一批真正迁移和实现：`packages/core`
-- 第二批：`packages/client`、`packages/transport-*`、`packages/devtools` 最小可用
-- 下一批：`env-*` 作为唯一边界层落地
+- 已落地：`packages/core`
+- 已落地：`packages/client`、`packages/transport-websocket`、`packages/devtools`
+- 已落地第一批边界层：`packages/env-browser`、`packages/env-node`
+- 仍待决定：`transport-fetch` 是否需要单独落包，`bench` 是否要从 root 迁入 packages
 
 ## 6. 世界分层和特性分层要一致
 

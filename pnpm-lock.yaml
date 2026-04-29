@@ -17,9 +17,21 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^3.1.2
         version: 3.2.4(vitest@3.2.4(@types/node@22.19.17)(tsx@4.21.0))
+      capnp-js:
+        specifier: ^0.2.11
+        version: 0.2.11
       eslint:
         specifier: ^9.25.0
         version: 9.39.4
+      flatbuffers:
+        specifier: ^25.9.23
+        version: 25.9.23
+      protobufjs:
+        specifier: ^8.0.3
+        version: 8.0.3
+      ts-binary:
+        specifier: ^0.11.0
+        version: 0.11.0
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(postcss@8.5.12)(tsx@4.21.0)(typescript@5.9.3)
@@ -27,7 +39,7 @@ importers:
         specifier: ^4.19.3
         version: 4.21.0
       typescript:
-        specifier: ^5.8.3
+        specifier: ^5.9.3
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.30.1
@@ -35,6 +47,34 @@ importers:
       vitest:
         specifier: ^3.1.2
         version: 3.2.4(@types/node@22.19.17)(tsx@4.21.0)
+
+  packages/client:
+    dependencies:
+      '@fluxbin/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/core: {}
+
+  packages/devtools:
+    dependencies:
+      '@fluxbin/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/env-browser:
+    dependencies:
+      '@fluxbin/transport-websocket':
+        specifier: workspace:*
+        version: link:../transport-websocket
+
+  packages/env-node:
+    dependencies:
+      '@fluxbin/transport-websocket':
+        specifier: workspace:*
+        version: link:../transport-websocket
+
+  packages/transport-websocket: {}
 
 packages:
 
@@ -612,6 +652,9 @@ packages:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
 
+  capnp-js@0.2.11:
+    resolution: {integrity: sha512-y8GFp2byZJV+lE0zRR71KxqGhRQ2udXQSCa8Y+NcEtqlvQhAB03c5MkAlmKtvCEGPuTwhqPnsyOYZ9k+7DWPcg==}
+
   chai@5.3.3:
     resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
     engines: {node: '>=18'}
@@ -776,6 +819,9 @@ packages:
     resolution: {integrity: sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw==}
     engines: {node: '>=16'}
 
+  flatbuffers@25.9.23:
+    resolution: {integrity: sha512-MI1qs7Lo4Syw0EOzUl0xjs2lsoeqFku44KpngfIduHBYvzm8h2+7K8YMQh1JtVVVrUvhLpNwqVi4DERegUJhPQ==}
+
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
@@ -909,6 +955,9 @@ packages:
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
 
+  long@5.3.2:
+    resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
+
   loupe@3.2.1:
     resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
 
@@ -1038,6 +1087,10 @@ packages:
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
+
+  protobufjs@8.0.3:
+    resolution: {integrity: sha512-LBYnMWkKLB8fE/ljROPDbCl7mgLSlI+oBe1fAAr5MTqFg4TIi0tYrVVurJvQggOjnUYMQtEZBjrej59ojMNTHQ==}
+    engines: {node: '>=12.0.0'}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -1171,6 +1224,9 @@ packages:
     engines: {node: '>=18.12'}
     peerDependencies:
       typescript: '>=4.8.4'
+
+  ts-binary@0.11.0:
+    resolution: {integrity: sha512-LNtveutOjdx40EwKnalRTAIAQGEtvH8u13lILW15CDhIyfsplrXkE92USH4dtBpShjzcPT/MEBrhvr2R1dFNuQ==}
 
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
@@ -1816,6 +1872,8 @@ snapshots:
 
   callsites@3.1.0: {}
 
+  capnp-js@0.2.11: {}
+
   chai@5.3.3:
     dependencies:
       assertion-error: 2.0.1
@@ -2006,6 +2064,8 @@ snapshots:
       flatted: 3.4.2
       keyv: 4.5.4
 
+  flatbuffers@25.9.23: {}
+
   flatted@3.4.2: {}
 
   foreground-child@3.3.1:
@@ -2124,6 +2184,8 @@ snapshots:
 
   lodash.merge@4.6.2: {}
 
+  long@5.3.2: {}
+
   loupe@3.2.1: {}
 
   lru-cache@10.4.3: {}
@@ -2239,6 +2301,11 @@ snapshots:
       source-map-js: 1.2.1
 
   prelude-ls@1.2.1: {}
+
+  protobufjs@8.0.3:
+    dependencies:
+      '@types/node': 22.19.17
+      long: 5.3.2
 
   punycode@2.3.1: {}
 
@@ -2375,6 +2442,8 @@ snapshots:
   ts-api-utils@2.5.0(typescript@5.9.3):
     dependencies:
       typescript: 5.9.3
+
+  ts-binary@0.11.0: {}
 
   ts-interface-checker@0.1.13: {}
 

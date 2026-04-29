@@ -12,6 +12,7 @@ export * from "./log/frame-log.js";
 export * from "./raw/raw-codec.js";
 export * from "./raw/raw-types.js";
 export * from "./reader/decode-payload.js";
+export * from "./reader/lazy-payload.js";
 export * from "./registry/create-registry.js";
 export * from "./registry/registry-types.js";
 export * from "./scalar/bool.js";

@@ -19,6 +19,10 @@ function ensureWritable(view: DataView, offset: number, byteLength: number): Res
   return ok(offset + byteLength);
 }
 
+function getBytes(view: DataView): Uint8Array {
+  return new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+}
+
 function ensureIntegerRange(value: number, min: number, max: number, offset: number): Result<number, FluxBinError> {
   if (!Number.isInteger(value) || value < min || value > max) {
     return err(
@@ -40,7 +44,8 @@ export function writeU8(view: DataView, offset: number, value: number): ScalarWr
     return ready;
   }
 
-  view.setUint8(offset, value);
+  const bytes = getBytes(view);
+  bytes[offset] = value;
   return ok(ready.value);
 }
 
@@ -55,7 +60,8 @@ export function writeI8(view: DataView, offset: number, value: number): ScalarWr
     return ready;
   }
 
-  view.setInt8(offset, value);
+  const bytes = getBytes(view);
+  bytes[offset] = value & 0xff;
   return ok(ready.value);
 }
 
@@ -70,7 +76,14 @@ export function writeU16(view: DataView, offset: number, value: number, endian: 
     return ready;
   }
 
-  view.setUint16(offset, value, isLittleEndian(endian));
+  const bytes = getBytes(view);
+  if (isLittleEndian(endian)) {
+    bytes[offset] = value & 0xff;
+    bytes[offset + 1] = (value >>> 8) & 0xff;
+  } else {
+    bytes[offset] = (value >>> 8) & 0xff;
+    bytes[offset + 1] = value & 0xff;
+  }
   return ok(ready.value);
 }
 
@@ -85,7 +98,15 @@ export function writeI16(view: DataView, offset: number, value: number, endian: 
     return ready;
   }
 
-  view.setInt16(offset, value, isLittleEndian(endian));
+  const bytes = getBytes(view);
+  const normalizedValue = value & 0xffff;
+  if (isLittleEndian(endian)) {
+    bytes[offset] = normalizedValue & 0xff;
+    bytes[offset + 1] = (normalizedValue >>> 8) & 0xff;
+  } else {
+    bytes[offset] = (normalizedValue >>> 8) & 0xff;
+    bytes[offset + 1] = normalizedValue & 0xff;
+  }
   return ok(ready.value);
 }
 
@@ -100,7 +121,18 @@ export function writeU32(view: DataView, offset: number, value: number, endian: 
     return ready;
   }
 
-  view.setUint32(offset, value, isLittleEndian(endian));
+  const bytes = getBytes(view);
+  if (isLittleEndian(endian)) {
+    bytes[offset] = value & 0xff;
+    bytes[offset + 1] = (value >>> 8) & 0xff;
+    bytes[offset + 2] = (value >>> 16) & 0xff;
+    bytes[offset + 3] = (value >>> 24) & 0xff;
+  } else {
+    bytes[offset] = (value >>> 24) & 0xff;
+    bytes[offset + 1] = (value >>> 16) & 0xff;
+    bytes[offset + 2] = (value >>> 8) & 0xff;
+    bytes[offset + 3] = value & 0xff;
+  }
   return ok(ready.value);
 }
 
@@ -115,6 +147,17 @@ export function writeI32(view: DataView, offset: number, value: number, endian: 
     return ready;
   }
 
-  view.setInt32(offset, value, isLittleEndian(endian));
+  const bytes = getBytes(view);
+  if (isLittleEndian(endian)) {
+    bytes[offset] = value & 0xff;
+    bytes[offset + 1] = (value >>> 8) & 0xff;
+    bytes[offset + 2] = (value >>> 16) & 0xff;
+    bytes[offset + 3] = (value >>> 24) & 0xff;
+  } else {
+    bytes[offset] = (value >>> 24) & 0xff;
+    bytes[offset + 1] = (value >>> 16) & 0xff;
+    bytes[offset + 2] = (value >>> 8) & 0xff;
+    bytes[offset + 3] = value & 0xff;
+  }
   return ok(ready.value);
 }

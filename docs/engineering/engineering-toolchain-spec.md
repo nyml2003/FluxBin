@@ -58,7 +58,7 @@
 
 ### 目录建议
 
-推荐从“单包根目录”演进到“workspace + packages”结构：
+当前仓库实际目录是：
 
 ```text
 docs/
@@ -75,14 +75,18 @@ packages/
   transport-websocket/
     src/
     test/
-  transport-fetch/
-    src/
-    test/
   devtools/
     src/
-  bench/
+    test/
+  env-browser/
     src/
+    test/
+  env-node/
+    src/
+    test/
 bench/
+  index.ts
+examples/
 scripts/
 ```
 
@@ -90,10 +94,15 @@ scripts/
 
 - `packages/core` 放协议运行时代码
 - `packages/client` 放端到端 SDK
-- `packages/transport-*` 放 transport adapter
+- `packages/transport-websocket` 是当前唯一已落地的 transport adapter
 - `packages/devtools` 放调试与开发体验工具
-- `packages/bench` 放性能基准
+- `bench/` 当前仍在 root
 - `scripts/` 放代码生成、检查、文档验证脚本
+
+future candidates:
+
+- `packages/transport-fetch`
+- `packages/bench`
 
 当前仓库已经进入 `packages/*` 结构，root 负责 workspace orchestration，运行时代码以包为单位承载。
 
@@ -107,7 +116,7 @@ scripts/
 
 - `packages/*/src/*`
 - `packages/*/test/*`
-- `packages/*/bench/*`
+- `bench/*.ts`
 - `scripts/*`
 
 ### 配置原则

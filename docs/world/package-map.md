@@ -1,5 +1,7 @@
 # FluxBin Package Map
 
+这份文档先描述当前仓库真实布局，再列 future candidates。
+
 ## Root
 
 root 目录只负责：
@@ -7,6 +9,8 @@ root 目录只负责：
 - workspace orchestration
 - shared lint / tsconfig / test config
 - docs
+- `bench/`
+- `examples/`
 - repo-level scripts
 
 root 不负责承载长期业务运行时代码。
@@ -37,7 +41,8 @@ packages/core/
 
 负责：
 
-- 当前根 `src/*` 的协议内核
+- 协议内核实现
+- lazy reader / writer / registry / frame / scalar codecs
 
 ## `packages/client`
 
@@ -89,27 +94,6 @@ packages/transport-websocket/
 - 直接接触浏览器 / Node 原生 WebSocket
 - 解释 payload 业务语义
 
-## `packages/transport-fetch`
-
-建议内容：
-
-```text
-packages/transport-fetch/
-  src/
-    fetch-transport.ts
-    types.ts
-    index.ts
-  test/
-```
-
-负责：
-
-- request/response 型传输协议抽象
-
-不负责：
-
-- 直接接触具体环境 fetch 实现
-
 ## `packages/devtools`
 
 建议内容：
@@ -133,23 +117,10 @@ packages/devtools/
 
 ## `packages/env-*`
 
-建议内容：
+当前已落地：
 
-```text
-packages/env-browser/
-  src/
-    websocket-factory.ts
-    fetch-adapter.ts
-    types.ts
-    index.ts
-
-packages/env-node/
-  src/
-    websocket-factory.ts
-    stream-adapter.ts
-    types.ts
-    index.ts
-```
+- `packages/env-browser`
+- `packages/env-node`
 
 负责：
 
@@ -163,16 +134,13 @@ packages/env-node/
 - 所有环境差异都收进这里
 - `core/client/transport/devtools` 不再直接碰环境 API
 
-## `packages/bench`
+## `bench/`
 
-建议内容：
+当前 bench 仍保留在 root：
 
 ```text
-packages/bench/
-  src/
-    scalar.bench.ts
-    frame.bench.ts
-    stream.bench.ts
+bench/
+  index.ts
 ```
 
 负责：
@@ -195,10 +163,11 @@ examples/
 - 手动验收
 - playground
 
-## 当前迁移原则
+## Future Candidates
 
-1. 先把当前 `src/*` 迁到 `packages/core/src/*`
-2. root 保留聚合配置和 workspace 命令
-3. `client` 先建骨架，不抢 `core` 职责
-4. `transport-*` 保持非边界层，不直接碰环境 API
-5. `env-*` 作为唯一边界层单独演进
+- `packages/transport-fetch`
+  - request/response 型 transport 候选
+- `packages/bench`
+  - 如果后面需要把 benchmark 从 root 收进 packages，可单独迁移
+- `packages/env-cloudflare`
+- `packages/env-bun`

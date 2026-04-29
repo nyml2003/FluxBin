@@ -9,11 +9,13 @@ export type CompiledPrimitiveNode = {
 };
 
 export type CompiledField = {
+  fixedOffset: number | null;
   key: string;
   node: CompiledNode;
 };
 
 export type CompiledShape = {
+  fieldIndexByKey: Readonly<Record<string, number>>;
   kind: "shape";
   fields: readonly CompiledField[];
   fixedWidth: boolean;
@@ -24,6 +26,7 @@ export type CompiledShape = {
 
 export type CompiledTupleNode = {
   kind: "tuple";
+  itemFixedOffsets: readonly (number | null)[];
   items: readonly CompiledNode[];
   fixedWidth: boolean;
   staticByteLength: number | null;
@@ -32,6 +35,7 @@ export type CompiledTupleNode = {
 };
 
 export type CompiledObjectArrayNode = {
+  fixedItemByteWidth: number | null;
   kind: "object-array";
   item: CompiledShape;
   fixedWidth: false;
@@ -41,8 +45,10 @@ export type CompiledObjectArrayNode = {
 };
 
 export type CompiledScalarArrayNode = {
+  fixedItemByteWidth: number | null;
   kind: "scalar-array";
   item: PrimitiveShapeNode;
+  itemNode: CompiledPrimitiveNode;
   fixedWidth: false;
   staticByteLength: null;
   depth: number;

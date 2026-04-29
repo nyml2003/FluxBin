@@ -60,13 +60,21 @@ function getCompiledNodeByteLength(node: CompiledNode): number | null {
 
 function compileObjectShape(shape: Shape): CompiledShape {
   const fields: CompiledField[] = [];
+  const fieldIndexByKey: Record<string, number> = {};
   let fixedWidth = true;
   let staticByteLength = 0;
   let maxDepth = 1;
+  let runningOffset = 0;
 
-  for (const [key, node] of Object.entries(shape)) {
+  for (const [index, [key, node]] of Object.entries(shape).entries()) {
     const compiledNode = compileNodeInternal(node);
+    let fixedOffset: number | null = null;
+    if (fixedWidth) {
+      fixedOffset = runningOffset;
+    }
+    fieldIndexByKey[key] = index;
     fields.push({
+      fixedOffset,
       key,
       node: compiledNode
     });
@@ -80,11 +88,13 @@ function compileObjectShape(shape: Shape): CompiledShape {
       const byteWidth = getCompiledNodeByteLength(compiledNode);
       if (byteWidth !== null) {
         staticByteLength += byteWidth;
+        runningOffset += byteWidth;
       }
     }
   }
 
   return {
+    fieldIndexByKey,
     kind: "shape",
     fields,
     fixedWidth,
@@ -96,13 +106,20 @@ function compileObjectShape(shape: Shape): CompiledShape {
 
 function compileTupleNode(tupleNode: { tuple: readonly SchemaNode[] }): CompiledTupleNode {
   const items: CompiledNode[] = [];
+  const itemFixedOffsets: Array<number | null> = [];
   let fixedWidth = true;
   let staticByteLength = 0;
   let maxDepth = 1;
+  let runningOffset = 0;
 
   for (const item of tupleNode.tuple) {
     const compiledNode = compileNodeInternal(item);
     items.push(compiledNode);
+    if (fixedWidth) {
+      itemFixedOffsets.push(runningOffset);
+    } else {
+      itemFixedOffsets.push(null);
+    }
     maxDepth = Math.max(maxDepth, compiledNode.depth + 1);
 
     if (!compiledNode.fixedWidth) {
@@ -112,12 +129,14 @@ function compileTupleNode(tupleNode: { tuple: readonly SchemaNode[] }): Compiled
       const byteWidth = getCompiledNodeByteLength(compiledNode);
       if (byteWidth !== null) {
         staticByteLength += byteWidth;
+        runningOffset += byteWidth;
       }
     }
   }
 
   return {
     kind: "tuple",
+    itemFixedOffsets,
     items,
     fixedWidth,
     staticByteLength: fixedWidth ? staticByteLength : null,
@@ -129,6 +148,7 @@ function compileTupleNode(tupleNode: { tuple: readonly SchemaNode[] }): Compiled
 function compileObjectArrayNode(node: { objectArray: Shape }): CompiledObjectArrayNode {
   const compiledShape = compileObjectShape(node.objectArray);
   return {
+    fixedItemByteWidth: compiledShape.fixedWidth ? compiledShape.staticByteLength : null,
     kind: "object-array",
     item: compiledShape,
     fixedWidth: false,
@@ -139,9 +159,12 @@ function compileObjectArrayNode(node: { objectArray: Shape }): CompiledObjectArr
 }
 
 function compileScalarArrayNode(node: { scalarArray: PrimitiveShapeNode }): CompiledScalarArrayNode {
+  const primitiveNode = createCompiledPrimitiveNode(node.scalarArray);
   return {
+    fixedItemByteWidth: primitiveNode.fixedWidth ? primitiveNode.byteWidth : null,
     kind: "scalar-array",
     item: node.scalarArray,
+    itemNode: primitiveNode,
     fixedWidth: false,
     staticByteLength: null,
     depth: 1

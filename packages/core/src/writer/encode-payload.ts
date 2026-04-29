@@ -4,117 +4,80 @@ import type { FluxBinError } from "../errors/error-types.js";
 import type { Result } from "../types/result.js";
 import type { FluxBinOptions } from "../limits/default-limits.js";
 import type { CompiledField, CompiledNode, CompiledPrimitiveNode, CompiledRootNode } from "../shape/compiled-shape.js";
-import { encodeUtf8String } from "../scalar/utf8.js";
 import { writeBool } from "../scalar/bool.js";
 import { writeI16, writeI32, writeI8, writeU16, writeU32, writeU8 } from "../scalar/write-scalars.js";
 
-type ByteCollector = {
-  chunks: Uint8Array[];
-  totalByteLength: number;
+const textEncoder = new TextEncoder();
+
+type GrowableWriter = {
+  buffer: Uint8Array;
+  offset: number;
+  options: FluxBinOptions;
+  view: DataView;
 };
 
-function createByteCollector(): ByteCollector {
+function createGrowableWriter(options: FluxBinOptions): GrowableWriter {
+  const initialCapacity = Math.min(1024, options.limits.maxPayloadBytes);
+  const buffer = new Uint8Array(initialCapacity);
+
   return {
-    chunks: [],
-    totalByteLength: 0
+    buffer,
+    offset: 0,
+    options,
+    view: new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength)
   };
 }
 
-function pushChunk(collector: ByteCollector, chunk: Uint8Array) {
-  collector.chunks.push(chunk);
-  collector.totalByteLength += chunk.byteLength;
-}
-
-function materializeCollector(collector: ByteCollector): Uint8Array {
-  const bytes = new Uint8Array(collector.totalByteLength);
-  let offset = 0;
-
-  for (const chunk of collector.chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
+function ensureCapacity(writer: GrowableWriter, additionalBytes: number): Result<void, FluxBinError> {
+  const requiredLength = writer.offset + additionalBytes;
+  if (requiredLength > writer.options.limits.maxPayloadBytes) {
+    return err(
+      protocolError(
+        ERROR_CODES.PAYLOAD_TOO_LARGE,
+        `Payload length ${String(requiredLength)} exceeds maxPayloadBytes.`,
+        null
+      )
+    );
   }
 
-  return bytes;
-}
-
-type FixedWidthScalarNode = CompiledPrimitiveNode & {
-  kind: "u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "bool";
-};
-
-function encodeFixedWidth(
-  node: FixedWidthScalarNode,
-  input: unknown,
-  options: FluxBinOptions
-): Result<Uint8Array, FluxBinError> {
-  let byteWidth = 0;
-  if (node.byteWidth !== null) {
-    byteWidth = node.byteWidth;
+  if (requiredLength <= writer.buffer.byteLength) {
+    return ok(undefined);
   }
 
-  const bytes = new Uint8Array(byteWidth);
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-
-  switch (node.kind) {
-    case "bool":
-      if (typeof input !== "boolean") {
-        return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Tuple/scalar bool node must be a boolean.", null));
-      }
-      return mapScalarWrite(writeBool(view, 0, input), bytes);
-    case "i8":
-      if (typeof input !== "number") {
-        return invalidNumber(node.kind);
-      }
-
-      return mapScalarWrite(writeI8(view, 0, input), bytes);
-    case "i16":
-      if (typeof input !== "number") {
-        return invalidNumber(node.kind);
-      }
-
-      return mapScalarWrite(writeI16(view, 0, input, options.endian), bytes);
-    case "i32":
-      if (typeof input !== "number") {
-        return invalidNumber(node.kind);
-      }
-
-      return mapScalarWrite(writeI32(view, 0, input, options.endian), bytes);
-    case "u8":
-      if (typeof input !== "number") {
-        return invalidNumber(node.kind);
-      }
-
-      return mapScalarWrite(writeU8(view, 0, input), bytes);
-    case "u16":
-      if (typeof input !== "number") {
-        return invalidNumber(node.kind);
-      }
-
-      return mapScalarWrite(writeU16(view, 0, input, options.endian), bytes);
-    case "u32":
-      if (typeof input !== "number") {
-        return invalidNumber(node.kind);
-      }
-
-      return mapScalarWrite(writeU32(view, 0, input, options.endian), bytes);
+  let nextCapacity = writer.buffer.byteLength;
+  while (nextCapacity < requiredLength) {
+    nextCapacity = Math.min(nextCapacity * 2, writer.options.limits.maxPayloadBytes);
+    if (nextCapacity === writer.buffer.byteLength) {
+      break;
+    }
   }
 
-  const unsupportedKind = String(node.kind);
-  return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, `Unsupported fixed-width node "${unsupportedKind}".`, null));
+  if (nextCapacity < requiredLength) {
+    return err(
+      protocolError(
+        ERROR_CODES.PAYLOAD_TOO_LARGE,
+        `Payload length ${String(requiredLength)} exceeds maxPayloadBytes.`,
+        null
+      )
+    );
+  }
+
+  const nextBuffer = new Uint8Array(nextCapacity);
+  nextBuffer.set(writer.buffer.subarray(0, writer.offset), 0);
+  writer.buffer = nextBuffer;
+  writer.view = new DataView(nextBuffer.buffer, nextBuffer.byteOffset, nextBuffer.byteLength);
+  return ok(undefined);
 }
 
-function invalidNumber(nodeLabel: string): Result<Uint8Array, FluxBinError> {
+function finishWriter(writer: GrowableWriter): Uint8Array {
+  return writer.buffer.slice(0, writer.offset);
+}
+
+function invalidNumber(nodeLabel: string): Result<void, FluxBinError> {
   return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, `Node "${nodeLabel}" must be a number.`, null));
 }
 
-function mapScalarWrite(result: Result<number, FluxBinError>, bytes: Uint8Array): Result<Uint8Array, FluxBinError> {
-  if (!result.ok) {
-    return result;
-  }
-
-  return ok(bytes);
-}
-
-function encodeArrayCount(count: number, options: FluxBinOptions): Result<Uint8Array, FluxBinError> {
+function validateArrayCount(count: number, options: FluxBinOptions): Result<void, FluxBinError> {
   if (!Number.isInteger(count) || count < 0) {
     return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Array count must be a non-negative integer.", null));
   }
@@ -128,39 +91,205 @@ function encodeArrayCount(count: number, options: FluxBinOptions): Result<Uint8A
     );
   }
 
-  const bytes = new Uint8Array(4);
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const writeResult = writeU32(view, 0, count, options.endian);
+  return ok(undefined);
+}
+
+function writeArrayCount(writer: GrowableWriter, count: number): Result<void, FluxBinError> {
+  const countValidation = validateArrayCount(count, writer.options);
+  if (!countValidation.ok) {
+    return countValidation;
+  }
+
+  const capacity = ensureCapacity(writer, 4);
+  if (!capacity.ok) {
+    return capacity;
+  }
+
+  const writeResult = writeU32(writer.view, writer.offset, count, writer.options.endian);
   if (!writeResult.ok) {
     return writeResult;
   }
 
-  return ok(bytes);
+  writer.offset = writeResult.value;
+  return ok(undefined);
 }
 
-function encodeNode(node: CompiledNode, input: unknown, options: FluxBinOptions): Result<Uint8Array, FluxBinError> {
+function writePrimitiveNode(
+  writer: GrowableWriter,
+  node: CompiledPrimitiveNode,
+  input: unknown
+): Result<void, FluxBinError> {
+  if (node.kind === "utf8-string") {
+    if (typeof input !== "string") {
+      return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "utf8-string node must be a string.", null));
+    }
+
+    const encoded = textEncoder.encode(input);
+    if (encoded.byteLength > writer.options.limits.maxStringBytes) {
+      return err(
+        protocolError(
+          ERROR_CODES.INVALID_FIELD_VALUE,
+          `String byte length ${String(encoded.byteLength)} exceeds maxStringBytes.`,
+          null
+        )
+      );
+    }
+
+    const capacity = ensureCapacity(writer, encoded.byteLength + 4);
+    if (!capacity.ok) {
+      return capacity;
+    }
+
+    const lengthWrite = writeU32(writer.view, writer.offset, encoded.byteLength, writer.options.endian);
+    if (!lengthWrite.ok) {
+      return lengthWrite;
+    }
+    writer.offset = lengthWrite.value;
+    writer.buffer.set(encoded, writer.offset);
+    writer.offset += encoded.byteLength;
+    return ok(undefined);
+  }
+
+  const byteWidth = node.byteWidth ?? 0;
+  const capacity = ensureCapacity(writer, byteWidth);
+  if (!capacity.ok) {
+    return capacity;
+  }
+
+  switch (node.kind) {
+    case "bool": {
+      if (typeof input !== "boolean") {
+        return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Tuple/scalar bool node must be a boolean.", null));
+      }
+
+      const writeResult = writeBool(writer.view, writer.offset, input);
+      if (!writeResult.ok) {
+        return writeResult;
+      }
+      writer.offset = writeResult.value;
+      return ok(undefined);
+    }
+    case "i8": {
+      if (typeof input !== "number") {
+        return invalidNumber(node.kind);
+      }
+      const writeResult = writeI8(writer.view, writer.offset, input);
+      if (!writeResult.ok) {
+        return writeResult;
+      }
+      writer.offset = writeResult.value;
+      return ok(undefined);
+    }
+    case "i16": {
+      if (typeof input !== "number") {
+        return invalidNumber(node.kind);
+      }
+      const writeResult = writeI16(writer.view, writer.offset, input, writer.options.endian);
+      if (!writeResult.ok) {
+        return writeResult;
+      }
+      writer.offset = writeResult.value;
+      return ok(undefined);
+    }
+    case "i32": {
+      if (typeof input !== "number") {
+        return invalidNumber(node.kind);
+      }
+      const writeResult = writeI32(writer.view, writer.offset, input, writer.options.endian);
+      if (!writeResult.ok) {
+        return writeResult;
+      }
+      writer.offset = writeResult.value;
+      return ok(undefined);
+    }
+    case "u8": {
+      if (typeof input !== "number") {
+        return invalidNumber(node.kind);
+      }
+      const writeResult = writeU8(writer.view, writer.offset, input);
+      if (!writeResult.ok) {
+        return writeResult;
+      }
+      writer.offset = writeResult.value;
+      return ok(undefined);
+    }
+    case "u16": {
+      if (typeof input !== "number") {
+        return invalidNumber(node.kind);
+      }
+      const writeResult = writeU16(writer.view, writer.offset, input, writer.options.endian);
+      if (!writeResult.ok) {
+        return writeResult;
+      }
+      writer.offset = writeResult.value;
+      return ok(undefined);
+    }
+    case "u32": {
+      if (typeof input !== "number") {
+        return invalidNumber(node.kind);
+      }
+      const writeResult = writeU32(writer.view, writer.offset, input, writer.options.endian);
+      if (!writeResult.ok) {
+        return writeResult;
+      }
+      writer.offset = writeResult.value;
+      return ok(undefined);
+    }
+  }
+}
+
+function createCompiledPrimitiveNode(kind: CompiledPrimitiveNode["kind"]): CompiledPrimitiveNode {
+  switch (kind) {
+    case "bool":
+      return { kind, fixedWidth: true, byteWidth: 1, staticByteLength: 1, depth: 0 };
+    case "i8":
+    case "u8":
+      return { kind, fixedWidth: true, byteWidth: 1, staticByteLength: 1, depth: 0 };
+    case "i16":
+    case "u16":
+      return { kind, fixedWidth: true, byteWidth: 2, staticByteLength: 2, depth: 0 };
+    case "i32":
+    case "u32":
+      return { kind, fixedWidth: true, byteWidth: 4, staticByteLength: 4, depth: 0 };
+    case "utf8-string":
+      return { kind, fixedWidth: false, byteWidth: null, staticByteLength: null, depth: 0 };
+  }
+
+  return { kind: "u8", fixedWidth: true, byteWidth: 1, staticByteLength: 1, depth: 0 };
+}
+
+function writeNode(writer: GrowableWriter, node: CompiledNode, input: unknown): Result<void, FluxBinError> {
+  if (
+    node.kind === "bool" ||
+    node.kind === "i8" ||
+    node.kind === "i16" ||
+    node.kind === "i32" ||
+    node.kind === "u8" ||
+    node.kind === "u16" ||
+    node.kind === "u32" ||
+    node.kind === "utf8-string"
+  ) {
+    return writePrimitiveNode(writer, node, input);
+  }
+
   if (node.kind === "shape") {
     if (typeof input !== "object" || input === null || Array.isArray(input)) {
       return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Shape node must be an object.", null));
     }
 
-    const collector = createByteCollector();
     const objectInput = input as Record<string, unknown>;
-
     for (const field of node.fields) {
       if (!(field.key in objectInput)) {
         return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, `Field "${field.key}" is required.`, null));
       }
 
-      const encodedField = encodeField(field, objectInput[field.key], options);
+      const encodedField = writeField(writer, field, objectInput[field.key]);
       if (!encodedField.ok) {
         return encodedField;
       }
-
-      pushChunk(collector, encodedField.value);
     }
 
-    return ok(materializeCollector(collector));
+    return ok(undefined);
   }
 
   if (node.kind === "tuple") {
@@ -178,17 +307,14 @@ function encodeNode(node: CompiledNode, input: unknown, options: FluxBinOptions)
       );
     }
 
-    const collector = createByteCollector();
     for (const [index, item] of node.items.entries()) {
-      const encodedItem = encodeNode(item, input[index], options);
+      const encodedItem = writeNode(writer, item, input[index]);
       if (!encodedItem.ok) {
         return encodedItem;
       }
-
-      pushChunk(collector, encodedItem.value);
     }
 
-    return ok(materializeCollector(collector));
+    return ok(undefined);
   }
 
   if (node.kind === "object-array") {
@@ -196,23 +322,19 @@ function encodeNode(node: CompiledNode, input: unknown, options: FluxBinOptions)
       return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Object array node must be an array.", null));
     }
 
-    const countBytes = encodeArrayCount(input.length, options);
-    if (!countBytes.ok) {
-      return countBytes;
+    const countResult = writeArrayCount(writer, input.length);
+    if (!countResult.ok) {
+      return countResult;
     }
 
-    const collector = createByteCollector();
-    pushChunk(collector, countBytes.value);
     for (const item of input) {
-      const encodedItem = encodeNode(node.item, item, options);
+      const encodedItem = writeNode(writer, node.item, item);
       if (!encodedItem.ok) {
         return encodedItem;
       }
-
-      pushChunk(collector, encodedItem.value);
     }
 
-    return ok(materializeCollector(collector));
+    return ok(undefined);
   }
 
   if (node.kind === "scalar-array") {
@@ -220,48 +342,27 @@ function encodeNode(node: CompiledNode, input: unknown, options: FluxBinOptions)
       return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Scalar array node must be an array.", null));
     }
 
-    const countBytes = encodeArrayCount(input.length, options);
-    if (!countBytes.ok) {
-      return countBytes;
+    const countResult = writeArrayCount(writer, input.length);
+    if (!countResult.ok) {
+      return countResult;
     }
 
-    const collector = createByteCollector();
-    pushChunk(collector, countBytes.value);
+    const primitiveNode = createCompiledPrimitiveNode(node.item);
     for (const item of input) {
-      const encodedItem = encodeNode(
-        {
-          kind: node.item,
-          fixedWidth: node.item !== "utf8-string",
-          byteWidth: node.item === "utf8-string" ? null : node.item === "u16" || node.item === "i16" ? 2 : node.item === "u32" || node.item === "i32" ? 4 : 1,
-          staticByteLength: node.item === "utf8-string" ? null : node.item === "u16" || node.item === "i16" ? 2 : node.item === "u32" || node.item === "i32" ? 4 : 1,
-          depth: 0
-        },
-        item,
-        options
-      );
+      const encodedItem = writePrimitiveNode(writer, primitiveNode, item);
       if (!encodedItem.ok) {
         return encodedItem;
       }
-
-      pushChunk(collector, encodedItem.value);
     }
 
-    return ok(materializeCollector(collector));
+    return ok(undefined);
   }
 
-  if (node.kind === "utf8-string") {
-    if (typeof input !== "string") {
-      return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "utf8-string node must be a string.", null));
-    }
-
-    return encodeUtf8String(input, options.endian, options.limits);
-  }
-
-  return encodeFixedWidth(node as FixedWidthScalarNode, input, options);
+  return err(protocolError(ERROR_CODES.INVALID_FIELD_VALUE, "Unsupported compiled node kind.", null));
 }
 
-function encodeField(field: CompiledField, input: unknown, options: FluxBinOptions): Result<Uint8Array, FluxBinError> {
-  return encodeNode(field.node, input, options);
+function writeField(writer: GrowableWriter, field: CompiledField, input: unknown): Result<void, FluxBinError> {
+  return writeNode(writer, field.node, input);
 }
 
 export function encodePayload(
@@ -269,5 +370,11 @@ export function encodePayload(
   input: unknown,
   options: FluxBinOptions
 ): Result<Uint8Array, FluxBinError> {
-  return encodeNode(compiledShape, input, options);
+  const writer = createGrowableWriter(options);
+  const encoded = writeNode(writer, compiledShape, input);
+  if (!encoded.ok) {
+    return encoded;
+  }
+
+  return ok(finishWriter(writer));
 }

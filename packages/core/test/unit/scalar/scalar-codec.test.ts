@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { readBool, writeBool } from "../../../src/scalar/bool.js";
-import { readI16, readU32 } from "../../../src/scalar/read-scalars.js";
+import { readI16, readI32, readU16, readU32 } from "../../../src/scalar/read-scalars.js";
 import { decodeUtf8String, encodeUtf8String } from "../../../src/scalar/utf8.js";
-import { writeI16, writeU32 } from "../../../src/scalar/write-scalars.js";
+import { writeI16, writeI32, writeU16, writeU32 } from "../../../src/scalar/write-scalars.js";
 
 describe("scalar codecs", () => {
   it("roundtrips u32 and i16 values", () => {
@@ -19,6 +19,22 @@ describe("scalar codecs", () => {
 
     const readI16Result = readI16(view, 4, "little");
     expect(readI16Result).toEqual({ ok: true, value: { nextOffset: 6, value: -42 }, error: null });
+  });
+
+  it("roundtrips big-endian unsigned and signed boundary values", () => {
+    const bytes = new Uint8Array(6);
+    const view = new DataView(bytes.buffer);
+
+    expect(writeU16(view, 0, 0xabcd, "big")).toEqual({ ok: true, value: 2, error: null });
+    expect(writeI32(view, 2, -0x1234_5678, "big")).toEqual({ ok: true, value: 6, error: null });
+
+    expect(Array.from(bytes)).toEqual([0xab, 0xcd, 0xed, 0xcb, 0xa9, 0x88]);
+    expect(readU16(view, 0, "big")).toEqual({ ok: true, value: { nextOffset: 2, value: 0xabcd }, error: null });
+    expect(readI32(view, 2, "big")).toEqual({
+      ok: true,
+      value: { nextOffset: 6, value: -0x1234_5678 },
+      error: null
+    });
   });
 
   it("roundtrips bool values", () => {

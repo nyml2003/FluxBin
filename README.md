@@ -2,11 +2,28 @@
 
 FluxBin 是一个面向 Browser / Node 的极简二进制协议设计方案。
 
-当前仓库已经进入 `packages/*` 世界模型：
+当前仓库的已落地包结构是：
+
+- `packages/core`
+- `packages/client`
+- `packages/transport-websocket`
+- `packages/devtools`
+- `packages/env-browser`
+- `packages/env-node`
+- root `bench/`
+
+当前文档入口：
 
 - [Spec Overview](./docs/spec/00-overview.md)
 - [World Docs](./docs/world/README.md)
 - [Current Gaps](./docs/overview/current-gaps.md)
+
+说明：
+
+- `transport-fetch`
+- `packages/bench`
+
+目前仍属于 future candidate，不是当前仓库中的实际目录。
 
 建议阅读顺序：
 

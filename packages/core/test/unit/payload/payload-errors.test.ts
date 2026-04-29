@@ -198,4 +198,108 @@ describe("payload encode/decode errors", () => {
     const badObjectArray = encodePayload(compiled.value, { ids: [], users: ["bad"] }, createOptions());
     expect(badObjectArray.ok).toBe(false);
   });
+
+  it("encodes objectArray roots and rejects invalid array root inputs", () => {
+    const compiled = compileShape({
+      objectArray: {
+        id: "u32",
+        name: "utf8-string"
+      }
+    });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) {
+      return;
+    }
+
+    const encoded = encodePayload(
+      compiled.value,
+      [
+        { id: 1, name: "a" },
+        { id: 2, name: "b" }
+      ],
+      createOptions()
+    );
+    expect(encoded.ok).toBe(true);
+
+    const invalidRoot = encodePayload(compiled.value, { id: 1 }, createOptions());
+    expect(invalidRoot.ok).toBe(false);
+  });
+
+  it("rejects tuple root with non-array input and enforces array limits", () => {
+    const tupleCompiled = compileShape({
+      tuple: ["u32", "utf8-string"]
+    });
+    expect(tupleCompiled.ok).toBe(true);
+    if (!tupleCompiled.ok) {
+      return;
+    }
+
+    const invalidTupleRoot = encodePayload(tupleCompiled.value, { id: 1 }, createOptions());
+    expect(invalidTupleRoot.ok).toBe(false);
+
+    const arrayCompiled = compileShape({
+      ids: { scalarArray: "u32" }
+    });
+    expect(arrayCompiled.ok).toBe(true);
+    if (!arrayCompiled.ok) {
+      return;
+    }
+
+    const limitedOptions = createOptions({
+      limits: {
+        maxArrayLength: 1
+      }
+    });
+    const oversizedArray = encodePayload(arrayCompiled.value, { ids: [1, 2] }, limitedOptions);
+    expect(oversizedArray.ok).toBe(false);
+  });
+
+  it("grows internal writer capacity for large arrays and enforces payload/string limits", () => {
+    const largeArrayCompiled = compileShape({
+      ids: { scalarArray: "u32" },
+      labels: { scalarArray: "utf8-string" }
+    });
+    expect(largeArrayCompiled.ok).toBe(true);
+    if (!largeArrayCompiled.ok) {
+      return;
+    }
+
+    const largeArrayEncoded = encodePayload(
+      largeArrayCompiled.value,
+      {
+        ids: Array.from({ length: 400 }, (_, index) => index),
+        labels: ["a", "b", "c"]
+      },
+      createOptions()
+    );
+    expect(largeArrayEncoded.ok).toBe(true);
+
+    const payloadTooLarge = encodePayload(
+      largeArrayCompiled.value,
+      {
+        ids: [1],
+        labels: ["a"]
+      },
+      createOptions({
+        limits: {
+          maxPayloadBytes: 4
+        }
+      })
+    );
+    expect(payloadTooLarge.ok).toBe(false);
+
+    const stringTooLarge = encodePayload(
+      largeArrayCompiled.value,
+      {
+        ids: [],
+        labels: ["ab"]
+      },
+      createOptions({
+        limits: {
+          maxStringBytes: 1
+        }
+      })
+    );
+    expect(stringTooLarge.ok).toBe(false);
+  });
 });
